@@ -1,0 +1,25 @@
+# Operating system files
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Logs and temporary files
+*.log
+*.tmp
+*.temp
+
+# Local editor settings
+.vscode/
+.idea/
+
+# Python local server/cache files
+__pycache__/
+.pytest_cache/
+
+# Keep real lead exports out of public repositories.
+# Use data/sample-leads.csv only with anonymized data.
+data/private-*.csv
+data/real-*.csv
+data/*leads-real*.csv
+data/*לידים*.csv
+

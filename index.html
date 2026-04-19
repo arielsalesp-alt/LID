@@ -1,0 +1,2234 @@
+﻿<!doctype html>
+<html lang="he" dir="rtl">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>מערכת לניתוח סטטיסטי של מכירות</title>
+  <style>
+:root {
+  --ink: #172019;
+  --muted: #66736a;
+  --paper: #fffaf0;
+  --panel: rgba(255, 255, 255, 0.82);
+  --line: rgba(23, 32, 25, 0.12);
+  --green: #1f7a4d;
+  --green-dark: #115736;
+  --amber: #efb84f;
+  --clay: #cc6f4a;
+  --sky: #77b6cf;
+  --shadow: 0 24px 70px rgba(24, 42, 31, 0.16);
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html {
+  overflow-x: hidden;
+}
+
+body {
+  margin: 0;
+  min-height: 100vh;
+  overflow-x: hidden;
+  color: var(--ink);
+  font-family: "Segoe UI", "Noto Sans Hebrew", Tahoma, sans-serif;
+  background:
+    radial-gradient(circle at 15% 10%, rgba(239, 184, 79, 0.36), transparent 28rem),
+    radial-gradient(circle at 88% 12%, rgba(119, 182, 207, 0.32), transparent 24rem),
+    linear-gradient(135deg, #fffaf0 0%, #edf5e7 54%, #f7ede2 100%);
+}
+
+body::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  opacity: 0.35;
+  background-image:
+    linear-gradient(rgba(23, 32, 25, 0.06) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(23, 32, 25, 0.06) 1px, transparent 1px);
+  background-size: 34px 34px;
+  mask-image: linear-gradient(to bottom, #000, transparent 80%);
+}
+
+.shell {
+  position: relative;
+  width: min(1180px, calc(100% - 24px));
+  margin: 0 auto;
+  padding: 34px 0 54px;
+}
+
+.hero {
+  display: grid;
+  grid-template-columns: minmax(0, 1.2fr) minmax(320px, 0.8fr);
+  gap: 28px;
+  align-items: stretch;
+  margin-bottom: 24px;
+}
+
+h1,
+h2,
+p {
+  margin-top: 0;
+}
+
+h1 {
+  max-width: 830px;
+  margin-bottom: 14px;
+  font-size: clamp(2.4rem, 6vw, 5.4rem);
+  line-height: 0.95;
+  letter-spacing: -0.06em;
+}
+
+h2 {
+  margin-bottom: 10px;
+  font-size: clamp(1.3rem, 2vw, 1.8rem);
+}
+
+.subtitle {
+  max-width: 760px;
+  color: var(--muted);
+  font-size: 1.15rem;
+  line-height: 1.8;
+}
+
+.eyebrow {
+  margin-bottom: 9px;
+  color: var(--green-dark);
+  font-size: 0.8rem;
+  font-weight: 800;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+}
+
+.hero-card,
+.panel,
+.metric {
+  min-width: 0;
+  border: 1px solid var(--line);
+  border-radius: 28px;
+  background: var(--panel);
+  box-shadow: var(--shadow);
+  backdrop-filter: blur(18px);
+}
+
+.hero-card {
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  gap: 18px;
+  padding: 22px;
+}
+
+.upload {
+  display: grid;
+  gap: 8px;
+  min-height: 170px;
+  align-content: center;
+  justify-items: center;
+  border: 2px dashed rgba(31, 122, 77, 0.35);
+  border-radius: 22px;
+  background: rgba(255, 255, 255, 0.55);
+  cursor: pointer;
+  text-align: center;
+}
+
+.upload input {
+  display: none;
+}
+
+.upload span {
+  color: var(--green-dark);
+  font-size: 1.25rem;
+  font-weight: 900;
+}
+
+.upload strong {
+  color: var(--muted);
+  font-size: 0.92rem;
+  direction: ltr;
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+button {
+  border: 0;
+  border-radius: 999px;
+  padding: 12px 18px;
+  color: white;
+  background: var(--green);
+  font: inherit;
+  font-weight: 800;
+  cursor: pointer;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+button:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 10px 22px rgba(31, 122, 77, 0.24);
+}
+
+button.ghost {
+  color: var(--green-dark);
+  background: rgba(31, 122, 77, 0.1);
+}
+
+.panel {
+  padding: 22px;
+}
+
+.intro {
+  margin-bottom: 22px;
+}
+
+.grid {
+  display: grid;
+  gap: 14px;
+}
+
+.metrics {
+  grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+  margin-bottom: 18px;
+}
+
+.metric {
+  position: relative;
+  overflow: hidden;
+  min-height: 134px;
+  padding: 20px;
+}
+
+.metric::after {
+  content: "";
+  position: absolute;
+  width: 80px;
+  height: 80px;
+  left: -22px;
+  bottom: -28px;
+  border-radius: 50%;
+  background: rgba(239, 184, 79, 0.28);
+}
+
+.metric span {
+  color: var(--muted);
+  font-size: 0.92rem;
+  font-weight: 800;
+}
+
+.metric strong {
+  display: block;
+  margin-top: 12px;
+  font-size: clamp(2rem, 4vw, 3.4rem);
+  line-height: 1;
+}
+
+.filters {
+  margin-bottom: 18px;
+}
+
+.insights-panel {
+  margin-bottom: 18px;
+}
+
+.insights-list {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 12px;
+}
+
+.insight-card {
+  display: grid;
+  gap: 8px;
+  min-height: 118px;
+  padding: 17px;
+  border: 1px solid rgba(31, 122, 77, 0.14);
+  border-radius: 22px;
+  background:
+    linear-gradient(135deg, rgba(255, 255, 255, 0.78), rgba(239, 184, 79, 0.14)),
+    rgba(255, 255, 255, 0.52);
+}
+
+.insight-card strong {
+  color: var(--green-dark);
+  font-size: 1.02rem;
+}
+
+.insight-card span {
+  color: var(--muted);
+  line-height: 1.65;
+}
+
+.section-head {
+  display: flex;
+  gap: 16px;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 18px;
+}
+
+.result-count,
+.muted {
+  color: var(--muted);
+  font-weight: 700;
+}
+
+.filter-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+  gap: 12px;
+}
+
+label {
+  display: grid;
+  gap: 7px;
+  color: var(--muted);
+  font-size: 0.88rem;
+  font-weight: 800;
+}
+
+input,
+select {
+  width: 100%;
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  padding: 12px 13px;
+  color: var(--ink);
+  background: rgba(255, 255, 255, 0.78);
+  font: inherit;
+}
+
+.compact {
+  min-width: 220px;
+}
+
+.analytics {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 18px;
+}
+
+.wide {
+  grid-column: 1 / -1;
+}
+
+.bar-chart {
+  display: grid;
+  gap: 12px;
+}
+
+.funnel-chart {
+  display: grid;
+  gap: 10px;
+  justify-items: end;
+}
+
+.funnel-step {
+  display: grid;
+  grid-template-columns: 1fr auto auto;
+  gap: 10px;
+  align-items: center;
+  min-width: 42%;
+  border-radius: 18px;
+  padding: 12px 14px;
+  color: #fff;
+  background: linear-gradient(90deg, var(--green-dark), var(--green), var(--amber));
+  box-shadow: 0 12px 22px rgba(31, 122, 77, 0.16);
+}
+
+.funnel-step span,
+.funnel-step strong,
+.funnel-step small {
+  font-weight: 900;
+}
+
+.trend-chart {
+  display: flex;
+  align-items: end;
+  gap: 10px;
+  min-height: 210px;
+  overflow-x: auto;
+  padding: 10px 4px 0;
+}
+
+.trend-day {
+  display: grid;
+  justify-items: center;
+  gap: 6px;
+  min-width: 46px;
+  color: var(--muted);
+  font-weight: 800;
+}
+
+.trend-bar {
+  display: block;
+  width: 26px;
+  border-radius: 999px 999px 6px 6px;
+  background: linear-gradient(180deg, var(--clay), var(--amber));
+  animation: rise 0.72s ease both;
+}
+
+.trend-day small {
+  font-size: 0.74rem;
+}
+
+.trend-day strong {
+  color: var(--green-dark);
+  font-size: 0.86rem;
+}
+
+.hour-chart {
+  display: flex;
+  align-items: end;
+  gap: 7px;
+  min-height: 178px;
+  overflow-x: auto;
+  padding-top: 16px;
+}
+
+.hour-cell {
+  display: grid;
+  justify-items: center;
+  gap: 7px;
+  min-width: 31px;
+  color: var(--muted);
+  font-weight: 800;
+}
+
+.hour-stick {
+  display: block;
+  width: 15px;
+  border-radius: 999px 999px 4px 4px;
+  background: linear-gradient(180deg, var(--sky), var(--green));
+  animation: rise 0.72s ease both;
+}
+
+.hour-cell small {
+  font-size: 0.7rem;
+  writing-mode: vertical-rl;
+}
+
+.weekday-chart {
+  display: grid;
+  gap: 11px;
+}
+
+.weekday-row {
+  display: grid;
+  grid-template-columns: 76px 1fr 44px 76px;
+  gap: 10px;
+  align-items: center;
+  color: var(--muted);
+  font-weight: 800;
+}
+
+.weekday-track {
+  height: 16px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: rgba(23, 32, 25, 0.08);
+}
+
+.weekday-track b {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, var(--clay), var(--amber));
+  animation: grow 0.75s ease both;
+}
+
+.weekday-row strong {
+  color: var(--green-dark);
+}
+
+.weekday-row small {
+  font-size: 0.78rem;
+}
+
+.heat-cell {
+  --heat: 0;
+  color: var(--green-dark);
+  background: rgba(31, 122, 77, calc(0.10 + var(--heat) * 0.34));
+  font-weight: 950;
+}
+
+.keyword-cloud {
+  display: flex;
+  flex-wrap: wrap;
+  align-content: flex-start;
+  gap: 9px;
+  min-height: 180px;
+}
+
+.keyword-cloud span {
+  display: inline-flex;
+  gap: 6px;
+  align-items: center;
+  border: 1px solid rgba(31, 122, 77, 0.16);
+  border-radius: 999px;
+  padding: 8px 12px;
+  color: var(--green-dark);
+  background: rgba(255, 255, 255, 0.72);
+  font-weight: 900;
+}
+
+.keyword-cloud b {
+  color: var(--clay);
+}
+
+.report-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(230px, 1fr));
+  gap: 12px;
+}
+
+.report-card {
+  display: grid;
+  gap: 8px;
+  min-height: 118px;
+  padding: 17px;
+  border-radius: 22px;
+  border: 1px solid rgba(119, 182, 207, 0.22);
+  background:
+    radial-gradient(circle at 10% 10%, rgba(119, 182, 207, 0.18), transparent 60%),
+    rgba(255, 255, 255, 0.72);
+}
+
+.report-card strong {
+  color: var(--green-dark);
+  font-size: 1.05rem;
+}
+
+.report-card span {
+  color: var(--muted);
+  line-height: 1.65;
+}
+
+.bar-row {
+  display: grid;
+  grid-template-columns: minmax(90px, 180px) minmax(0, 1fr) auto;
+  gap: 12px;
+  align-items: center;
+}
+
+.bar-label {
+  overflow: hidden;
+  font-weight: 800;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.bar-track {
+  overflow: hidden;
+  height: 16px;
+  border-radius: 999px;
+  background: rgba(23, 32, 25, 0.08);
+}
+
+.bar-fill {
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, var(--green), var(--amber));
+  transform-origin: right;
+  animation: grow 0.75s ease both;
+}
+
+.bar-value {
+  color: var(--muted);
+  font-weight: 900;
+}
+
+.table-wrap {
+  width: 100%;
+  max-width: 100%;
+  overflow: auto;
+  border: 1px solid var(--line);
+  border-radius: 20px;
+}
+
+.compact-table {
+  max-height: 360px;
+}
+
+table {
+  width: 100%;
+  min-width: 720px;
+  border-collapse: collapse;
+  background: rgba(255, 255, 255, 0.58);
+  table-layout: auto;
+}
+
+th,
+td {
+  padding: 13px 14px;
+  border-bottom: 1px solid var(--line);
+  text-align: right;
+  vertical-align: top;
+  overflow-wrap: anywhere;
+}
+
+th {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  color: var(--green-dark);
+  background: #fff9ec;
+  font-size: 0.9rem;
+  white-space: nowrap;
+}
+
+td {
+  max-width: 360px;
+  color: #28342c;
+  font-size: 0.94rem;
+}
+
+tr:last-child td {
+  border-bottom: 0;
+}
+
+.badge {
+  display: inline-flex;
+  border-radius: 999px;
+  padding: 5px 10px;
+  background: rgba(31, 122, 77, 0.12);
+  color: var(--green-dark);
+  font-weight: 900;
+}
+
+.badge.warn {
+  color: #7a321c;
+  background: rgba(204, 111, 74, 0.16);
+}
+
+.score {
+  display: inline-grid;
+  place-items: center;
+  min-width: 44px;
+  min-height: 34px;
+  border-radius: 14px;
+  color: #fff;
+  background: var(--green);
+  font-weight: 950;
+}
+
+.score.hot {
+  background: linear-gradient(135deg, var(--clay), var(--amber));
+}
+
+@keyframes grow {
+  from {
+    transform: scaleX(0);
+  }
+}
+
+@keyframes rise {
+  from {
+    transform: scaleY(0);
+  }
+}
+
+@media (max-width: 980px) {
+  .hero,
+  .analytics {
+    grid-template-columns: 1fr;
+  }
+
+  .metrics,
+  .filter-grid,
+  .insights-list {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 640px) {
+  .shell {
+    width: min(100% - 14px, 1180px);
+    padding-top: 18px;
+  }
+
+  .metrics,
+  .filter-grid,
+  .insights-list {
+    grid-template-columns: 1fr;
+  }
+
+  .section-head {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .bar-row {
+    grid-template-columns: 1fr;
+  }
+
+  .weekday-row {
+    grid-template-columns: 64px 1fr 34px;
+  }
+
+  .weekday-row small {
+    grid-column: 2 / -1;
+  }
+}
+
+  </style>
+</head>
+<body>
+  <main class="shell">
+    <section class="hero">
+      <div>
+        <p class="eyebrow">Lead Intelligence</p>
+        <h1>מערכת לניתוח סטטיסטי של מכירות</h1>
+        <p class="subtitle">מעלים קובץ לידים, מקבלים תמונת מצב ברורה: סטטוסים, מקורות, נציגים, פוטנציאל, הצעות מחיר וסיבות סגירה.</p>
+      </div>
+      <div class="hero-card">
+        <label class="upload">
+          <input id="csvInput" type="file" accept=".csv,text/csv">
+          <span>בחר קובץ CSV</span>
+          <strong id="fileName">לא נבחר קובץ</strong>
+        </label>
+        <div class="actions">
+          <button id="loadSampleBtn" type="button">הפעל ניתוח סטטיסטי</button>
+          <button id="exportBtn" type="button" class="ghost">ייצא סיכום CSV</button>
+          <button id="resetBtn" type="button" class="ghost">נקה סינונים</button>
+        </div>
+      </div>
+    </section>
+
+    <section class="panel intro" id="emptyState">
+      <h2>איך מתחילים?</h2>
+      <p>לחץ על “הפעל ניתוח סטטיסטי” כדי לראות את המערכת עם הקובץ שסיפקת, או העלה כל קובץ CSV אחר באותו מבנה.</p>
+    </section>
+
+    <section class="grid metrics" id="metrics" hidden></section>
+
+    <section class="panel insights-panel" id="insightsPanel" hidden>
+      <div class="section-head">
+        <div>
+          <p class="eyebrow">תובנות אוטומטיות</p>
+          <h2>מה הנתונים מספרים?</h2>
+        </div>
+      </div>
+      <div id="insightsList" class="insights-list"></div>
+    </section>
+
+    <section class="panel filters" id="filtersPanel" hidden>
+      <div class="section-head">
+        <div>
+          <p class="eyebrow">חיתוך נתונים</p>
+          <h2>סינון לפי פרמטרים</h2>
+        </div>
+        <p id="resultCount" class="result-count"></p>
+      </div>
+      <div class="filter-grid">
+        <label>חיפוש חופשי
+          <input id="searchInput" type="search" placeholder="שם עסק, טלפון, הערה...">
+        </label>
+        <label>מנהל לקוח
+          <select id="ownerFilter"></select>
+        </label>
+        <label>מקור הגעה
+          <select id="sourceFilter"></select>
+        </label>
+        <label>פוטנציאל לקוח
+          <select id="potentialFilter"></select>
+        </label>
+        <label>סטטוס ליד
+          <select id="leadStatusFilter"></select>
+        </label>
+        <label>סטטוס מכירה
+          <select id="saleStatusFilter"></select>
+        </label>
+        <label>סיבת סגירה
+          <select id="closeReasonFilter"></select>
+        </label>
+        <label>מתאריך
+          <input id="fromDate" type="date">
+        </label>
+        <label>עד תאריך
+          <input id="toDate" type="date">
+        </label>
+      </div>
+    </section>
+
+    <section class="analytics" id="analytics" hidden>
+      <article class="panel">
+        <div class="section-head">
+          <div>
+            <p class="eyebrow">התפלגות</p>
+            <h2>סטטוס ליד</h2>
+          </div>
+        </div>
+        <div id="leadStatusChart" class="bar-chart"></div>
+      </article>
+
+      <article class="panel">
+        <div class="section-head">
+          <div>
+            <p class="eyebrow">מקורות</p>
+            <h2>מקור הגעה</h2>
+          </div>
+        </div>
+        <div id="sourceChart" class="bar-chart"></div>
+      </article>
+
+      <article class="panel">
+        <div class="section-head">
+          <div>
+            <p class="eyebrow">משפך</p>
+            <h2>זרימת לידים</h2>
+          </div>
+        </div>
+        <div id="funnelChart" class="funnel-chart"></div>
+      </article>
+
+      <article class="panel">
+        <div class="section-head">
+          <div>
+            <p class="eyebrow">זמן</p>
+            <h2>מגמה יומית</h2>
+          </div>
+        </div>
+        <div id="dailyTrend" class="trend-chart"></div>
+      </article>
+
+      <article class="panel">
+        <div class="section-head">
+          <div>
+            <p class="eyebrow">חסמים</p>
+            <h2>סיבות סגירה ללא רלוונטיים</h2>
+          </div>
+        </div>
+        <div id="closeReasonChart" class="bar-chart"></div>
+      </article>
+
+      <article class="panel">
+        <div class="section-head">
+          <div>
+            <p class="eyebrow">איכות דאטה</p>
+            <h2>טלפונים כפולים</h2>
+          </div>
+        </div>
+        <div class="table-wrap compact-table">
+          <table>
+            <thead>
+              <tr>
+                <th>טלפון</th>
+                <th>כמות</th>
+                <th>עסקים</th>
+              </tr>
+            </thead>
+            <tbody id="duplicateTable"></tbody>
+          </table>
+        </div>
+      </article>
+
+      <article class="panel wide">
+        <div class="section-head">
+          <div>
+            <p class="eyebrow">ROI תפעולי</p>
+            <h2>איכות לפי מקור הגעה</h2>
+          </div>
+        </div>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>מקור</th>
+                <th>סה״כ</th>
+                <th>מעוניינים</th>
+                <th>לא רלוונטיים</th>
+                <th>הצעות</th>
+                <th>יחס עניין</th>
+                <th>ציון איכות</th>
+              </tr>
+            </thead>
+            <tbody id="sourceQualityTable"></tbody>
+          </table>
+        </div>
+      </article>
+
+
+      <article class="panel">
+        <div class="section-head">
+          <div>
+            <p class="eyebrow">שעות פעילות</p>
+            <h2>באילו שעות נכנסים לידים?</h2>
+          </div>
+        </div>
+        <div id="hourChart" class="hour-chart"></div>
+      </article>
+
+      <article class="panel">
+        <div class="section-head">
+          <div>
+            <p class="eyebrow">ימי שבוע</p>
+            <h2>עומס לפי יום</h2>
+          </div>
+        </div>
+        <div id="weekdayChart" class="weekday-chart"></div>
+      </article>
+
+      <article class="panel wide">
+        <div class="section-head">
+          <div>
+            <p class="eyebrow">מטריצה</p>
+            <h2>מקור הגעה מול סטטוס ליד</h2>
+          </div>
+          <span class="muted">מציג עד 8 מקורות ועד 8 סטטוסים מובילים</span>
+        </div>
+        <div class="table-wrap">
+          <table id="sourceStatusMatrix"></table>
+        </div>
+      </article>
+
+      <article class="panel wide">
+        <div class="section-head">
+          <div>
+            <p class="eyebrow">ניהול צוות</p>
+            <h2>ביצועי מנהלי לקוח</h2>
+          </div>
+        </div>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>מנהל לקוח</th>
+                <th>סה״כ</th>
+                <th>מעוניינים</th>
+                <th>לא רלוונטיים</th>
+                <th>הצעות</th>
+                <th>כפילויות</th>
+                <th>ציון</th>
+              </tr>
+            </thead>
+            <tbody id="ownerPerformanceTable"></tbody>
+          </table>
+        </div>
+      </article>
+
+      <article class="panel">
+        <div class="section-head">
+          <div>
+            <p class="eyebrow">טקסט חופשי</p>
+            <h2>מילים שחוזרות בהערות</h2>
+          </div>
+        </div>
+        <div id="keywordCloud" class="keyword-cloud"></div>
+      </article>
+
+      <article class="panel">
+        <div class="section-head">
+          <div>
+            <p class="eyebrow">התראות טיפול</p>
+            <h2>לידים תקועים</h2>
+          </div>
+        </div>
+        <div class="table-wrap compact-table">
+          <table>
+            <thead>
+              <tr>
+                <th>תאריך</th>
+                <th>עסק</th>
+                <th>סטטוס</th>
+                <th>גיל</th>
+              </tr>
+            </thead>
+            <tbody id="staleLeadsTable"></tbody>
+          </table>
+        </div>
+      </article>
+
+      <article class="panel wide">
+        <div class="section-head">
+          <div>
+            <p class="eyebrow">דוח מנהלים</p>
+            <h2>סיכום פעולה אוטומטי</h2>
+          </div>
+          <span class="muted">נבנה מתוך הנתונים המסוננים כרגע</span>
+        </div>
+        <div id="executiveReport" class="report-grid"></div>
+      </article>
+
+      <article class="panel">
+        <div class="section-head">
+          <div>
+            <p class="eyebrow">ציון ליד</p>
+            <h2>התפלגות איכות לידים</h2>
+          </div>
+        </div>
+        <div id="scoreBucketsChart" class="bar-chart"></div>
+      </article>
+
+      <article class="panel wide">
+        <div class="section-head">
+          <div>
+            <p class="eyebrow">משימות מכירה</p>
+            <h2>לידים לטיפול מיידי</h2>
+          </div>
+          <span class="muted">מתועדף לפי איכות, סטטוס וגיל הליד</span>
+        </div>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>ציון</th>
+                <th>פעולה מומלצת</th>
+                <th>תאריך</th>
+                <th>עסק</th>
+                <th>מנהל</th>
+                <th>מקור</th>
+                <th>סטטוס</th>
+                <th>סיבה לדירוג</th>
+              </tr>
+            </thead>
+            <tbody id="priorityLeadsTable"></tbody>
+          </table>
+        </div>
+      </article>
+
+      <article class="panel wide">
+        <div class="section-head">
+          <div>
+            <p class="eyebrow">ניתוח לפי פרמטר</p>
+            <h2>טבלת ביצועים</h2>
+          </div>
+          <label class="compact">קבץ לפי
+            <select id="groupBySelect"></select>
+          </label>
+        </div>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>פרמטר</th>
+                <th>כמות לידים</th>
+                <th>מעוניינים</th>
+                <th>לא רלוונטיים</th>
+                <th>הצעות מחיר</th>
+                <th>יחס עניין</th>
+              </tr>
+            </thead>
+            <tbody id="groupTable"></tbody>
+          </table>
+        </div>
+      </article>
+
+      <article class="panel wide">
+        <div class="section-head">
+          <div>
+            <p class="eyebrow">רשומות</p>
+            <h2>לידים מסוננים</h2>
+          </div>
+          <span class="muted">מוצגות עד 120 רשומות</span>
+        </div>
+        <div class="table-wrap">
+          <table id="leadsTable"></table>
+        </div>
+      </article>
+    </section>
+  </main>
+
+  <script>
+window.EMBEDDED_SAMPLE_CSV = new TextDecoder("utf-8").decode(
+  Uint8Array.from(atob("77u/IteY15zXpNeV158g16jXkNep15kiLCLXoNeV16bXqCDXkdeq15DXqNeZ15oiLCLXqdedINeU16LXodenIiwi157XoNeU15wg15zXp9eV15ciLCLXodeY15jXldehINec16fXldeXIiwi157Xp9eV16gg15TXktei15QiLCLXpNeV15jXoNem15nXkNecINec16fXldeXIiwi16HXmNeY15XXoSDXnNeZ15MiLCLXodeY15jXldehINee15vXmdeo15QiLCLXlNeQ150g16DXqdec15fXlCDXlNem16LXqiDXnteX15nXqCIsIteh15jXmNeV16Eg15TXptei16og157Xl9eZ16giLCLXodeZ15HXqiDXodeS15nXqNeUIiwi157XmdeT16Ig16DXldeh16MiLCLXk9eV15DXqCDXkNec16fXmNeo15XXoNeZIgoiMDUwMTAwMDAwMSIsIjE4LzA0LzIwMjYgMDk6MTUiLCLXodeY15XXk9eZ15Ug15DXldeo15HXmdeYIiwi157XkNeZ15Qg16nXp9eTIiwi15zXmdeTIiwi16fXntek15nXmdefINeS15XXktecIiwiUHJlbWl1bSIsItee16LXldeg15nXmdefIiwi157Xoten15EiLCLXm9efIiwi16DXqdec15fXlCIsIi0iLCLXnNen15XXlyDXkdeZ16fXqSDXlNem16LXqiDXnteX15nXqCDXnteh15XXk9eo16og15XXl9eW16jXlCDXoteTINeh15XXoyDXlNeZ15XXnSIsIm9yYml0QGV4YW1wbGUuY29tIgoiMDUwMTAwMDAwMiIsIjE4LzA0LzIwMjYgMTE6NDAiLCLXnteo15vXliDXkdeo15nXkNeV16og15LXnNeZ15wiLCLXkNeZ16rXmSDXnNeR15nXkCIsItec15nXkyIsItec15nXkyDXmNec16TXldeg15kiLCJCYXNpYyIsIteU157XqdeaINeY15nXpNeV15wg15HXnNeZ15MiLCItIiwiLSIsIi0iLCItIiwi15DXmdefINee16LXoNeUINeR16DXmdeh15nXldefINeo15DXqdeV158sINeg16fXkdei15Qg16rXlteb15XXqNeqINec15fXlteo15QiLCJnYWxpbEBleGFtcGxlLmNvbSIKIjA1MDEwMDAwMDMiLCIxNy8wNC8yMDI2IDE0OjA1Iiwi16fXnNeZ16cg15PXmdeS15nXmNecIiwi16DXldei15Qg15DXqNeR15wiLCLXnNeZ15MiLCLXpNeo16HXldedINek15nXmdeh15HXldenIiwi15zXkCDXmdeT15XXoiIsItee16LXldeg15nXmdefIiwi15TXptei16og157Xl9eZ16giLCLXm9efIiwi15HXmNeZ16TXldecIiwiLSIsItee16rXoteg15nXmdefINeR157Xoteo15vXqiDXnNeg15nXlNeV15wg16TXoNeZ15XXqiDXldeo15XXpteUINec16jXkNeV16og15TXk9eS157XlCIsImNsaWNrQGV4YW1wbGUuY29tIgoiMDUwMTAwMDAwNCIsIjE2LzA0LzIwMjYgMTY6MjAiLCLXp9ek15Qg16DXldeo15nXqiIsIteo15XXnyDXotee15nXqiIsItec15nXkyIsIteQ15XXqNeS16DXmSIsItec15Ag16jXnNeV15XXoNeY15kiLCLXnNeQINeo15zXldeV16DXmNeZIiwiLSIsIi0iLCItIiwi15zXkCDXnteq15DXmdedINeq16fXpteZ15HXmdeqIiwi15TXnNen15XXlyDXkNee16gg16nXlNeq16fXpteZ15Eg15TXoNeV15vXl9eZINeg157XldeaINee15PXmSIsIm5vcml0QGV4YW1wbGUuY29tIgoiMDUwMTAwMDAwNSIsIjE2LzA0LzIwMjYgMTg6NTUiLCLXkNen15PXnteZ15nXqiDXpNeh15LXlCIsItec15nXlCDXktek158iLCLXnNeZ15MiLCLXqdeV16rXoyDXoteh16fXmSIsIkJhc2ljIiwi15TXntep15og15jXmdek15XXnCDXkdec15nXkyIsItee16LXp9eRIiwiLSIsIi0iLCItIiwi15HXmden16nXlSDXnNep15zXldeXINeh16jXmNeV158g15TXodeR16gg15XXnNeX15bXldeoINeR16nXkdeV16Ig15TXkdeQIiwicGlzZ2FAZXhhbXBsZS5jb20iCiIwNTAxMDAwMDA2IiwiMTUvMDQvMjAyNiAxMDoxMCIsItee15XXodeaINeU16bXpNeV158iLCLXotee16jXmSDXm9eU158iLCLXnNeZ15MiLCLXnNeZ15Mg15jXnNek15XXoNeZIiwi15zXkCDXqNec15XXldeg15jXmSIsItec15Ag16jXnNeV15XXoNeY15kiLCItIiwiLSIsIi0iLCLXmNec16TXldefINep15LXldeZIiwi15TXnteh16TXqCDXqdeZ15nXmiDXnNeQ15PXnSDXpNeo15jXmSDXldec15Ag15zXoteh16ciLCJub3J0aGdhcmFnZUBleGFtcGxlLmNvbSIKIjA1MDEwMDAwMDciLCIxNC8wNC8yMDI2IDEyOjMwIiwi16jXmdee15XXoNeZ150g16rXmdeZ16jXldeqIiwi15PXoNeZ15DXnCDXqNeV15bXnyIsItec15nXkyIsIten157XpNeZ15nXnyDXkteV15LXnCIsIlByZW1pdW0iLCLXntei15XXoNeZ15nXnyIsItee16LXp9eRIiwi15vXnyIsIteg16nXnNeX15QiLCItIiwi15zXp9eV15cg15fXnSwg15HXmden16kg16nXmdeX15Qg16LXnSDXnteg15TXnCDXnteb15nXqNeV16oiLCJyaW1vbmltQGV4YW1wbGUuY29tIgoiMDUwMTAwMDAwOCIsIjEzLzA0LzIwMjYgMDg6NDUiLCLXoteZ16bXldeR15kg15DXnNeUIiwi16nXmdeo15Qg15HXqNenIiwi15zXmdeTIiwi16TXqNeh15XXnSDXpNeZ15nXodeR15XXpyIsIkJhc2ljIiwi15TXntep15og15jXmdek15XXnCDXkdec15nXkyIsIi0iLCItIiwiLSIsIi0iLCLXntee16rXmdeg15Qg15zXkNeZ16nXldeoINep15XXqtejINec16TXoNeZINeU157XqdeaINeq15TXnNeZ15oiLCJlbGxhQGV4YW1wbGUuY29tIgoiMDUwMTAwMDAwOSIsIjEyLzA0LzIwMjYgMTU6MjUiLCLXnNeV15LXmdeh15jXmdenINek16jXmdeZ150iLCLXkNeV16jXmSDXkdefINeT15XXkyIsItec15nXkyIsIteQ15XXqNeS16DXmSIsItec15Ag15nXk9eV16IiLCLXntei15XXoNeZ15nXnyIsItek15LXmdep15QiLCItIiwiLSIsIi0iLCLXoNen15HXoteUINek15LXmdep15Qg16jXkNep15XXoNeZ16og15zXmdeV150g16jXkNep15XXnyIsInByaW1lQGV4YW1wbGUuY29tIgoiMDUwMTAwMDAxMCIsIjExLzA0LzIwMjYgMTk6MDUiLCLXlNee16jXm9eWINec15zXmdee15XXk9eZINep16TXlCIsIteq157XqCDXkNec15XXnyIsItec15nXkyIsItec15nXkyDXmNec16TXldeg15kiLCLXnNeQINeo15zXldeV16DXmNeZIiwi15zXkCDXqNec15XXldeg15jXmSIsIi0iLCItIiwiLSIsItee15fXpNepINei15HXldeT15QiLCLXlNek16DXmdeZ15Qg15TXmdeZ16rXlCDXnNeS15HXmSDXntep16jXlCDXldec15Ag15zXkteR15kg16nXmdeo15XXqiIsImxhbmd1YWdlQGV4YW1wbGUuY29tIg0K"), (char) => char.charCodeAt(0))
+);
+  </script>
+  <script>
+const columns = {
+  phone: "טלפון ראשי",
+  created: "נוצר בתאריך",
+  business: "שם העסק",
+  owner: "מנהל לקוח",
+  customerStatus: "סטטוס לקוח",
+  source: "מקור הגעה",
+  potential: "פוטנציאל לקוח",
+  leadStatus: "סטטוס ליד",
+  saleStatus: "סטטוס מכירה",
+  quoteSent: "האם נשלחה הצעת מחיר",
+  quoteStatus: "סטטוס הצעת מחיר",
+  closeReason: "סיבת סגירה",
+  notes: "מידע נוסף",
+  email: "דואר אלקטרוני",
+};
+
+const state = {
+  rows: [],
+  filtered: [],
+  headers: [],
+  sourceName: "",
+};
+
+const el = {
+  input: document.querySelector("#csvInput"),
+  fileName: document.querySelector("#fileName"),
+  loadSample: document.querySelector("#loadSampleBtn"),
+  exportBtn: document.querySelector("#exportBtn"),
+  resetBtn: document.querySelector("#resetBtn"),
+  empty: document.querySelector("#emptyState"),
+  metrics: document.querySelector("#metrics"),
+  insightsPanel: document.querySelector("#insightsPanel"),
+  insightsList: document.querySelector("#insightsList"),
+  filtersPanel: document.querySelector("#filtersPanel"),
+  analytics: document.querySelector("#analytics"),
+  resultCount: document.querySelector("#resultCount"),
+  search: document.querySelector("#searchInput"),
+  owner: document.querySelector("#ownerFilter"),
+  source: document.querySelector("#sourceFilter"),
+  potential: document.querySelector("#potentialFilter"),
+  leadStatus: document.querySelector("#leadStatusFilter"),
+  saleStatus: document.querySelector("#saleStatusFilter"),
+  closeReason: document.querySelector("#closeReasonFilter"),
+  fromDate: document.querySelector("#fromDate"),
+  toDate: document.querySelector("#toDate"),
+  leadStatusChart: document.querySelector("#leadStatusChart"),
+  sourceChart: document.querySelector("#sourceChart"),
+  funnelChart: document.querySelector("#funnelChart"),
+  dailyTrend: document.querySelector("#dailyTrend"),
+  closeReasonChart: document.querySelector("#closeReasonChart"),
+  duplicateTable: document.querySelector("#duplicateTable"),
+  sourceQualityTable: document.querySelector("#sourceQualityTable"),
+  hourChart: document.querySelector("#hourChart"),
+  weekdayChart: document.querySelector("#weekdayChart"),
+  sourceStatusMatrix: document.querySelector("#sourceStatusMatrix"),
+  ownerPerformanceTable: document.querySelector("#ownerPerformanceTable"),
+  keywordCloud: document.querySelector("#keywordCloud"),
+  staleLeadsTable: document.querySelector("#staleLeadsTable"),
+  executiveReport: document.querySelector("#executiveReport"),
+  scoreBucketsChart: document.querySelector("#scoreBucketsChart"),
+  priorityLeadsTable: document.querySelector("#priorityLeadsTable"),
+  groupBy: document.querySelector("#groupBySelect"),
+  groupTable: document.querySelector("#groupTable"),
+  leadsTable: document.querySelector("#leadsTable"),
+};
+
+const filterMap = [
+  [el.owner, columns.owner],
+  [el.source, columns.source],
+  [el.potential, columns.potential],
+  [el.leadStatus, columns.leadStatus],
+  [el.saleStatus, columns.saleStatus],
+  [el.closeReason, columns.closeReason],
+];
+
+el.input.addEventListener("change", async (event) => {
+  const file = event.target.files?.[0];
+  if (!file) return;
+  const text = await file.text();
+  loadCsv(text, file.name);
+});
+
+el.loadSample.addEventListener("click", async () => {
+  if (window.EMBEDDED_SAMPLE_CSV) {
+    loadCsv(window.EMBEDDED_SAMPLE_CSV, "sample-leads.csv");
+    return;
+  }
+
+  try {
+    const response = await fetch("data/sample-leads.csv", { cache: "no-store" });
+    if (response.ok) {
+      loadCsv(await response.text(), "sample-leads.csv");
+      return;
+    }
+  } catch (error) {
+    // GitHub Pages can still run from a single HTML file without a data folder.
+  }
+
+  alert("?? ???? ???? ?????. ???? ?????? CSV ????? ??? ????? ????.");
+});
+
+el.resetBtn.addEventListener("click", () => {
+  [el.search, el.fromDate, el.toDate].forEach((input) => {
+    input.value = "";
+  });
+  filterMap.forEach(([select]) => {
+    select.value = "__all";
+  });
+  applyFilters();
+});
+
+el.exportBtn.addEventListener("click", exportSummary);
+
+[el.search, el.fromDate, el.toDate, el.groupBy].forEach((input) => {
+  input.addEventListener("input", applyFilters);
+});
+
+filterMap.forEach(([select]) => {
+  select.addEventListener("change", applyFilters);
+});
+
+function loadCsv(text, name) {
+  const parsed = parseCsv(text);
+  if (parsed.length < 2) {
+    alert("הקובץ לא מכיל מספיק נתונים לניתוח.");
+    return;
+  }
+
+  state.headers = parsed[0].map(clean);
+  state.rows = parsed.slice(1).map((cells, index) => {
+    const row = { _rowNumber: index + 1 };
+    state.headers.forEach((header, headerIndex) => {
+      row[header] = clean(cells[headerIndex]);
+    });
+    row._createdDate = parseHebrewDate(row[columns.created]);
+    row._search = state.headers.map((header) => row[header]).join(" ").toLowerCase();
+    return row;
+  });
+
+  state.sourceName = name;
+  el.fileName.textContent = name;
+  el.empty.hidden = true;
+  el.metrics.hidden = false;
+  el.insightsPanel.hidden = false;
+  el.filtersPanel.hidden = false;
+  el.analytics.hidden = false;
+  buildControls();
+  applyFilters();
+}
+
+function buildControls() {
+  filterMap.forEach(([select, column]) => {
+    fillSelect(select, uniqueValues(state.rows, column));
+  });
+
+  const groupColumns = [
+    columns.leadStatus,
+    columns.saleStatus,
+    columns.source,
+    columns.owner,
+    columns.potential,
+    columns.closeReason,
+    columns.quoteSent,
+    columns.quoteStatus,
+  ].filter((column) => state.headers.includes(column));
+
+  el.groupBy.innerHTML = groupColumns
+    .map((column) => `<option value="${escapeHtml(column)}">${escapeHtml(column)}</option>`)
+    .join("");
+
+  const timestamps = state.rows.map((row) => row._createdDate?.getTime()).filter(Boolean);
+  if (timestamps.length) {
+    el.fromDate.min = toDateInput(new Date(Math.min(...timestamps)));
+    el.fromDate.max = toDateInput(new Date(Math.max(...timestamps)));
+    el.toDate.min = el.fromDate.min;
+    el.toDate.max = el.fromDate.max;
+  }
+}
+
+function applyFilters() {
+  const search = el.search.value.trim().toLowerCase();
+  const from = el.fromDate.value ? new Date(`${el.fromDate.value}T00:00:00`) : null;
+  const to = el.toDate.value ? new Date(`${el.toDate.value}T23:59:59`) : null;
+
+  state.filtered = state.rows.filter((row) => {
+    if (search && !row._search.includes(search)) return false;
+    if (from && (!row._createdDate || row._createdDate < from)) return false;
+    if (to && (!row._createdDate || row._createdDate > to)) return false;
+
+    return filterMap.every(([select, column]) => {
+      return select.value === "__all" || normalize(row[column]) === select.value;
+    });
+  });
+
+  render();
+}
+
+function render() {
+  renderMetrics();
+  renderInsights();
+  el.resultCount.textContent = `${formatNumber(state.filtered.length)} מתוך ${formatNumber(state.rows.length)} לידים`;
+  renderBarChart(el.leadStatusChart, countBy(state.filtered, columns.leadStatus));
+  renderBarChart(el.sourceChart, countBy(state.filtered, columns.source));
+  renderFunnel();
+  renderDailyTrend();
+  renderBarChart(el.closeReasonChart, countCloseReasonsForIrrelevant(state.filtered));
+  renderDuplicateTable();
+  renderSourceQualityTable();
+  renderHourChart();
+  renderWeekdayChart();
+  renderSourceStatusMatrix();
+  renderOwnerPerformanceTable();
+  renderKeywordCloud();
+  renderStaleLeadsTable();
+  renderExecutiveReport();
+  renderScoreBuckets();
+  renderPriorityLeadsTable();
+  renderGroupTable();
+  renderLeadsTable();
+}
+
+function renderMetrics() {
+  const total = state.filtered.length;
+  const interested = state.filtered.filter(isInterested).length;
+  const irrelevant = state.filtered.filter(isIrrelevant).length;
+  const otherProcess = state.filtered.filter(isOtherProcessWithoutCloseReason).length;
+  const quotes = state.filtered.filter(hasQuote).length;
+  const conversion = total ? Math.round((interested / total) * 100) : 0;
+
+  const metrics = [
+    ["סה״כ לידים", formatNumber(total)],
+    ["מעוניינים / בטיפול", formatNumber(interested)],
+    ["לא רלוונטיים", formatNumber(irrelevant)],
+    ["עברו תהליך אחר", formatNumber(otherProcess)],
+    ["הצעות מחיר", formatNumber(quotes)],
+    ["יחס עניין", `${conversion}%`],
+  ];
+
+  el.metrics.innerHTML = metrics
+    .map(([label, value]) => `<article class="metric"><span>${label}</span><strong>${value}</strong></article>`)
+    .join("");
+}
+
+function renderInsights() {
+  const total = state.filtered.length;
+  const sourceStats = buildGroupStats(state.filtered, columns.source).filter((group) => group.total >= 2);
+  const ownerStats = buildGroupStats(state.filtered, columns.owner).filter((group) => group.total >= 2);
+  const closeReasons = Object.entries(countCloseReasonsForIrrelevant(state.filtered)).sort((a, b) => b[1] - a[1]);
+  const otherProcessCount = state.filtered.filter(isOtherProcessWithoutCloseReason).length;
+  const duplicateCount = getDuplicatePhones(state.filtered).reduce((sum, item) => sum + item.count - 1, 0);
+  const bestHour = getBestHour(state.filtered);
+  const staleCount = state.filtered.filter((row) => row._createdDate && isOpenLead(row) && daysBetween(row._createdDate, getLatestDate(state.rows) || new Date()) >= 3).length;
+  const topKeyword = extractKeywords(state.filtered)[0];
+  const insights = [];
+
+  if (!total) {
+    el.insightsList.innerHTML = `<article class="insight-card">אין מספיק נתונים בסינון הנוכחי. נסה להרחיב את טווח התאריכים או לנקות חלק מהסינונים.</article>`;
+    return;
+  }
+
+  const bestSource = sourceStats.sort((a, b) => b.score - a.score || b.total - a.total)[0];
+  const weakestSource = sourceStats.sort((a, b) => a.score - b.score || b.total - a.total)[0];
+  const bestOwner = ownerStats.sort((a, b) => b.interestRate - a.interestRate || b.total - a.total)[0];
+  const topCloseReason = closeReasons[0];
+
+  if (bestSource) {
+    insights.push([
+      "המקור החזק ביותר",
+      `${bestSource.label} מוביל בציון איכות ${bestSource.score}/100 עם ${percent(bestSource.interested, bestSource.total)} יחס עניין.`,
+    ]);
+  }
+
+  if (weakestSource && weakestSource.label !== bestSource?.label) {
+    insights.push([
+      "מקור שדורש בדיקה",
+      `${weakestSource.label} מציג ציון איכות ${weakestSource.score}/100. כדאי לבדוק מסרים, קהל יעד או סינון מוקדם.`,
+    ]);
+  }
+
+  if (bestOwner) {
+    insights.push([
+      "ביצועי נציגים",
+      `${bestOwner.label} מציג/ה יחס עניין של ${percent(bestOwner.interested, bestOwner.total)} מתוך ${formatNumber(bestOwner.total)} לידים.`,
+    ]);
+  }
+
+  if (topCloseReason) {
+    insights.push([
+      "חסם מרכזי",
+      `בקרב לידים לא רלוונטיים, סיבת הסגירה הנפוצה היא "${topCloseReason[0]}" עם ${formatNumber(topCloseReason[1])} מופעים.`,
+    ]);
+  }
+
+  if (otherProcessCount) {
+    insights.push([
+      "תהליך אחר",
+      `${formatNumber(otherProcessCount)} לידים ללא סיבת סגירה אינם נספרים כחסם. לפי ההגדרה שלך הם עברו תהליך אחר, ולכן נותחו בנפרד.`,
+    ]);
+  }
+
+  if (duplicateCount) {
+    insights.push([
+      "איכות רשומות",
+      `נמצאו ${formatNumber(duplicateCount)} רשומות כפולות לפי טלפון. כדאי לאחד כפילויות לפני קבלת החלטות.`,
+    ]);
+  }
+
+  if (bestHour) {
+    insights.push([
+      "חלון זמן חזק",
+      `השעה הפעילה ביותר היא ${String(bestHour.hour).padStart(2, "0")}:00 עם ${formatNumber(bestHour.count)} לידים. זה רמז טוב לתזמון תגבור או קמפיינים.`,
+    ]);
+  }
+
+  if (staleCount) {
+    insights.push([
+      "לידים תקועים",
+      `${formatNumber(staleCount)} לידים פתוחים נמצאים מעל 3 ימים ללא סגירה ברורה. כדאי לתעדף אותם לרשימת חזרה.`,
+    ]);
+  }
+
+  if (topKeyword) {
+    insights.push([
+      "אות חוזר מההערות",
+      `המילה "${topKeyword.word}" חוזרת ${formatNumber(topKeyword.count)} פעמים בהערות. שווה לבדוק אם היא מסמנת התנגדות או צורך חוזר.`,
+    ]);
+  }
+
+  insights.push([
+    "תמונה כוללת",
+    `${percent(state.filtered.filter(isInterested).length, total)} מהלידים נמצאים בעניין או טיפול, ו-${percent(state.filtered.filter(isIrrelevant).length, total)} לא רלוונטיים.`,
+  ]);
+
+  el.insightsList.innerHTML = insights
+    .map(([title, text]) => `<article class="insight-card"><strong>${escapeHtml(title)}</strong><span>${escapeHtml(text)}</span></article>`)
+    .join("");
+}
+
+function renderBarChart(container, counts) {
+  const entries = Object.entries(counts)
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, 10);
+  const max = Math.max(1, ...entries.map(([, value]) => value));
+
+  container.innerHTML = entries.length
+    ? entries
+        .map(([label, value]) => {
+          const width = Math.max(5, Math.round((value / max) * 100));
+          return `
+            <div class="bar-row">
+              <span class="bar-label" title="${escapeHtml(label)}">${escapeHtml(label)}</span>
+              <span class="bar-track"><span class="bar-fill" style="width:${width}%"></span></span>
+              <span class="bar-value">${formatNumber(value)}</span>
+            </div>`;
+        })
+        .join("")
+    : `<p class="muted">אין נתונים להצגה בסינון הנוכחי.</p>`;
+}
+
+function renderFunnel() {
+  const total = state.filtered.length;
+  const interested = state.filtered.filter(isInterested).length;
+  const quotes = state.filtered.filter(hasQuote).length;
+  const followUp = state.filtered.filter((row) => /מעקב|המשך טיפול|פגישה/.test(`${normalize(row[columns.leadStatus])} ${normalize(row[columns.saleStatus])}`)).length;
+  const irrelevant = state.filtered.filter(isIrrelevant).length;
+  const steps = [
+    ["לידים שנכנסו", total],
+    ["עניין / טיפול", interested],
+    ["מעקב פעיל", followUp],
+    ["הצעות מחיר", quotes],
+    ["לא רלוונטיים", irrelevant],
+  ];
+  const max = Math.max(1, total);
+
+  el.funnelChart.innerHTML = steps
+    .map(([label, value]) => {
+      const width = Math.max(8, Math.round((value / max) * 100));
+      return `
+        <div class="funnel-step" style="width:${width}%">
+          <span>${escapeHtml(label)}</span>
+          <strong>${formatNumber(value)}</strong>
+          <small>${percent(value, total)}</small>
+        </div>`;
+    })
+    .join("");
+}
+
+function renderDailyTrend() {
+  const counts = countByDate(state.filtered);
+  const entries = Object.entries(counts).sort((a, b) => a[0].localeCompare(b[0]));
+  const max = Math.max(1, ...entries.map(([, value]) => value));
+
+  el.dailyTrend.innerHTML = entries.length
+    ? entries
+        .map(([date, value]) => {
+          const height = Math.max(12, Math.round((value / max) * 140));
+          return `
+            <div class="trend-day" title="${formatDateLabel(date)}: ${formatNumber(value)}">
+              <span class="trend-bar" style="height:${height}px"></span>
+              <small>${formatShortDate(date)}</small>
+              <strong>${formatNumber(value)}</strong>
+            </div>`;
+        })
+        .join("")
+    : `<p class="muted">אין תאריכים תקינים להצגת מגמה.</p>`;
+}
+
+function renderDuplicateTable() {
+  const duplicates = getDuplicatePhones(state.filtered).slice(0, 12);
+  el.duplicateTable.innerHTML = duplicates.length
+    ? duplicates
+        .map((item) => `
+          <tr>
+            <td>${escapeHtml(item.phone)}</td>
+            <td>${formatNumber(item.count)}</td>
+            <td>${escapeHtml(item.businesses.join(", "))}</td>
+          </tr>`)
+        .join("")
+    : `<tr><td colspan="3" class="muted">לא נמצאו טלפונים כפולים בסינון הנוכחי.</td></tr>`;
+}
+
+function renderSourceQualityTable() {
+  const stats = buildGroupStats(state.filtered, columns.source).sort((a, b) => b.score - a.score || b.total - a.total);
+  el.sourceQualityTable.innerHTML = stats.length
+    ? stats
+        .map((group) => `
+          <tr>
+            <td><span class="badge">${escapeHtml(group.label)}</span></td>
+            <td>${formatNumber(group.total)}</td>
+            <td>${formatNumber(group.interested)}</td>
+            <td>${formatNumber(group.irrelevant)}</td>
+            <td>${formatNumber(group.quotes)}</td>
+            <td>${group.interestRate}%</td>
+            <td><span class="score">${group.score}</span></td>
+          </tr>`)
+        .join("")
+    : `<tr><td colspan="7" class="muted">אין נתונים להצגה.</td></tr>`;
+}
+
+function renderHourChart() {
+  const counts = Array.from({ length: 24 }, (_, hour) => ({ hour, value: 0 }));
+  state.filtered.forEach((row) => {
+    if (row._createdDate) counts[row._createdDate.getHours()].value += 1;
+  });
+  const active = counts.filter((item) => item.value > 0);
+  const max = Math.max(1, ...counts.map((item) => item.value));
+
+  el.hourChart.innerHTML = active.length
+    ? counts
+        .map((item) => {
+          const height = item.value ? Math.max(10, Math.round((item.value / max) * 118)) : 3;
+          return `
+            <div class="hour-cell" title="${String(item.hour).padStart(2, "0")}:00 - ${formatNumber(item.value)} לידים">
+              <span class="hour-stick" style="height:${height}px"></span>
+              <small>${String(item.hour).padStart(2, "0")}</small>
+            </div>`;
+        })
+        .join("")
+    : `<p class="muted">אין שעות תקינות להצגה.</p>`;
+}
+
+function renderWeekdayChart() {
+  const names = ["ראשון", "שני", "שלישי", "רביעי", "חמישי", "שישי", "שבת"];
+  const counts = names.map((name, index) => ({ name, index, value: 0, interested: 0 }));
+  state.filtered.forEach((row) => {
+    if (!row._createdDate) return;
+    const day = row._createdDate.getDay();
+    counts[day].value += 1;
+    counts[day].interested += isInterested(row) ? 1 : 0;
+  });
+  const max = Math.max(1, ...counts.map((item) => item.value));
+
+  el.weekdayChart.innerHTML = counts
+    .map((item) => {
+      const width = item.value ? Math.max(8, Math.round((item.value / max) * 100)) : 2;
+      return `
+        <div class="weekday-row">
+          <span>${item.name}</span>
+          <div class="weekday-track">
+            <b style="width:${width}%"></b>
+          </div>
+          <strong>${formatNumber(item.value)}</strong>
+          <small>${percent(item.interested, item.value)} עניין</small>
+        </div>`;
+    })
+    .join("");
+}
+
+function renderSourceStatusMatrix() {
+  const sources = topKeys(countBy(state.filtered, columns.source), 8);
+  const statuses = topKeys(countBy(state.filtered, columns.leadStatus), 8);
+
+  if (!sources.length || !statuses.length) {
+    el.sourceStatusMatrix.innerHTML = `<tbody><tr><td class="muted">אין נתונים להצגת מטריצה.</td></tr></tbody>`;
+    return;
+  }
+
+  const rows = sources.map((source) => {
+    const cells = statuses.map((status) => {
+      const count = state.filtered.filter((row) => normalize(row[columns.source]) === source && normalize(row[columns.leadStatus]) === status).length;
+      return `<td class="${count ? "heat-cell" : ""}" style="--heat:${Math.min(1, count / Math.max(1, state.filtered.length / 8))}">${count ? formatNumber(count) : "-"}</td>`;
+    });
+    return `<tr><th>${escapeHtml(source)}</th>${cells.join("")}</tr>`;
+  });
+
+  el.sourceStatusMatrix.innerHTML = `
+    <thead><tr><th>מקור / סטטוס</th>${statuses.map((status) => `<th>${escapeHtml(status)}</th>`).join("")}</tr></thead>
+    <tbody>${rows.join("")}</tbody>`;
+}
+
+function renderOwnerPerformanceTable() {
+  const duplicatePhones = new Set(getDuplicatePhones(state.filtered).map((item) => item.phone));
+  const stats = buildGroupStats(state.filtered, columns.owner)
+    .map((group) => {
+      const duplicateCount = state.filtered.filter((row) => {
+        const phone = clean(row[columns.phone]).replace(/\D/g, "");
+        return normalize(row[columns.owner]) === group.label && duplicatePhones.has(phone);
+      }).length;
+      return { ...group, duplicateCount, score: Math.max(0, group.score - Math.min(20, duplicateCount * 2)) };
+    })
+    .sort((a, b) => b.score - a.score || b.total - a.total);
+
+  el.ownerPerformanceTable.innerHTML = stats.length
+    ? stats
+        .map((group) => `
+          <tr>
+            <td><span class="badge">${escapeHtml(group.label)}</span></td>
+            <td>${formatNumber(group.total)}</td>
+            <td>${formatNumber(group.interested)}</td>
+            <td>${formatNumber(group.irrelevant)}</td>
+            <td>${formatNumber(group.quotes)}</td>
+            <td>${formatNumber(group.duplicateCount)}</td>
+            <td><span class="score">${group.score}</span></td>
+          </tr>`)
+        .join("")
+    : `<tr><td colspan="7" class="muted">אין נתונים להצגה.</td></tr>`;
+}
+
+function renderKeywordCloud() {
+  const keywords = extractKeywords(state.filtered).slice(0, 28);
+  const max = Math.max(1, ...keywords.map((item) => item.count));
+
+  el.keywordCloud.innerHTML = keywords.length
+    ? keywords
+        .map((item) => {
+          const level = 0.86 + (item.count / max) * 0.7;
+          return `<span style="font-size:${level}rem">${escapeHtml(item.word)} <b>${formatNumber(item.count)}</b></span>`;
+        })
+        .join("")
+    : `<p class="muted">אין מספיק טקסט בהערות כדי לזהות מילים חוזרות.</p>`;
+}
+
+function renderStaleLeadsTable() {
+  const today = getLatestDate(state.rows) || new Date();
+  const stale = state.filtered
+    .filter((row) => row._createdDate && isOpenLead(row))
+    .map((row) => ({ row, age: daysBetween(row._createdDate, today) }))
+    .filter((item) => item.age >= 3)
+    .sort((a, b) => b.age - a.age)
+    .slice(0, 15);
+
+  el.staleLeadsTable.innerHTML = stale.length
+    ? stale
+        .map(({ row, age }) => `
+          <tr>
+            <td>${escapeHtml(row[columns.created] || "-")}</td>
+            <td>${escapeHtml(row[columns.business] || "-")}</td>
+            <td>${escapeHtml(normalize(row[columns.leadStatus]))}</td>
+            <td><span class="badge warn">${formatNumber(age)} ימים</span></td>
+          </tr>`)
+        .join("")
+    : `<tr><td colspan="4" class="muted">אין לידים פתוחים מעל 3 ימים בסינון הנוכחי.</td></tr>`;
+}
+
+function renderExecutiveReport() {
+  const total = state.filtered.length;
+  if (!total) {
+    el.executiveReport.innerHTML = `<article class="report-card">אין מספיק נתונים לבניית דוח מנהלים.</article>`;
+    return;
+  }
+
+  const scores = state.filtered.map((row) => calculateLeadScore(row).score);
+  const averageScore = Math.round(scores.reduce((sum, score) => sum + score, 0) / scores.length);
+  const hotLeads = state.filtered.filter((row) => calculateLeadScore(row).score >= 75).length;
+  const irrelevant = state.filtered.filter(isIrrelevant).length;
+  const stale = getPriorityLeads(state.filtered).filter((item) => item.age >= 3).length;
+  const sourceStats = buildGroupStats(state.filtered, columns.source).filter((group) => group.total >= 2);
+  const bestSource = [...sourceStats].sort((a, b) => b.score - a.score || b.total - a.total)[0];
+  const weakSource = [...sourceStats].sort((a, b) => a.score - b.score || b.total - a.total)[0];
+  const invalidPhones = state.filtered.filter((row) => !isValidPhone(row[columns.phone])).length;
+  const closeReasons = Object.entries(countCloseReasonsForIrrelevant(state.filtered)).sort((a, b) => b[1] - a[1]);
+  const mainBlocker = closeReasons[0];
+
+  const cards = [
+    ["בריאות כללית", `ציון איכות ממוצע ${averageScore}/100. יש ${formatNumber(hotLeads)} לידים חמים מתוך ${formatNumber(total)}.`],
+    ["מיקוד מכירה", stale ? `${formatNumber(stale)} לידים פתוחים דורשים חזרה מהירה.` : "אין עומס חריג של לידים פתוחים לפי הסינון הנוכחי."],
+    ["מקור להשקעה", bestSource ? `${bestSource.label} מוביל באיכות עם ציון ${bestSource.score}/100.` : "אין מספיק נתונים להשוואת מקורות."],
+    ["מקור לבדיקה", weakSource && weakSource.label !== bestSource?.label ? `${weakSource.label} חלש יחסית, עם ציון ${weakSource.score}/100.` : "אין מקור חלש מובהק בסינון הנוכחי."],
+    ["חסם מרכזי", mainBlocker ? `${mainBlocker[0]} היא סיבת הסגירה הבולטת ללא רלוונטיים.` : "אין חסם מרכזי מובהק מתוך סיבות הסגירה."],
+    ["איכות נתונים", invalidPhones ? `${formatNumber(invalidPhones)} טלפונים נראים לא תקינים ודורשים בדיקה.` : "לא זוהתה בעיית טלפונים משמעותית."],
+  ];
+
+  el.executiveReport.innerHTML = cards
+    .map(([title, body]) => `<article class="report-card"><strong>${escapeHtml(title)}</strong><span>${escapeHtml(body)}</span></article>`)
+    .join("");
+}
+
+function renderScoreBuckets() {
+  const buckets = {
+    "חם מאוד 80-100": 0,
+    "טוב 60-79": 0,
+    "בינוני 40-59": 0,
+    "נמוך 0-39": 0,
+  };
+
+  state.filtered.forEach((row) => {
+    const score = calculateLeadScore(row).score;
+    if (score >= 80) buckets["חם מאוד 80-100"] += 1;
+    else if (score >= 60) buckets["טוב 60-79"] += 1;
+    else if (score >= 40) buckets["בינוני 40-59"] += 1;
+    else buckets["נמוך 0-39"] += 1;
+  });
+
+  renderBarChart(el.scoreBucketsChart, buckets);
+}
+
+function renderPriorityLeadsTable() {
+  const priority = getPriorityLeads(state.filtered).slice(0, 18);
+  el.priorityLeadsTable.innerHTML = priority.length
+    ? priority
+        .map(({ row, score, reasons, action }) => `
+          <tr>
+            <td><span class="score ${score >= 80 ? "hot" : ""}">${score}</span></td>
+            <td>${escapeHtml(action)}</td>
+            <td>${escapeHtml(row[columns.created] || "-")}</td>
+            <td>${escapeHtml(row[columns.business] || "-")}</td>
+            <td>${escapeHtml(normalize(row[columns.owner]))}</td>
+            <td>${escapeHtml(normalize(row[columns.source]))}</td>
+            <td>${escapeHtml(normalize(row[columns.leadStatus]))}</td>
+            <td>${escapeHtml(reasons.join(", "))}</td>
+          </tr>`)
+        .join("")
+    : `<tr><td colspan="8" class="muted">אין לידים פתוחים או חמים לטיפול מיידי בסינון הנוכחי.</td></tr>`;
+}
+
+function renderGroupTable() {
+  const column = el.groupBy.value || columns.leadStatus;
+  const groups = new Map();
+
+  state.filtered.forEach((row) => {
+    const key = normalize(row[column]);
+    if (!groups.has(key)) {
+      groups.set(key, { total: 0, interested: 0, irrelevant: 0, quotes: 0 });
+    }
+    const group = groups.get(key);
+    group.total += 1;
+    group.interested += isInterested(row) ? 1 : 0;
+    group.irrelevant += isIrrelevant(row) ? 1 : 0;
+    group.quotes += hasQuote(row) ? 1 : 0;
+  });
+
+  el.groupTable.innerHTML = [...groups.entries()]
+    .sort((a, b) => b[1].total - a[1].total)
+    .map(([label, group]) => {
+      const ratio = group.total ? Math.round((group.interested / group.total) * 100) : 0;
+      return `
+        <tr>
+          <td><span class="badge">${escapeHtml(label)}</span></td>
+          <td>${formatNumber(group.total)}</td>
+          <td>${formatNumber(group.interested)}</td>
+          <td>${formatNumber(group.irrelevant)}</td>
+          <td>${formatNumber(group.quotes)}</td>
+          <td>${ratio}%</td>
+        </tr>`;
+    })
+    .join("");
+}
+
+function buildGroupStats(rows, column) {
+  const groups = new Map();
+  rows.forEach((row) => {
+    const key = normalize(row[column]);
+    if (!groups.has(key)) {
+      groups.set(key, { label: key, total: 0, interested: 0, irrelevant: 0, quotes: 0 });
+    }
+    const group = groups.get(key);
+    group.total += 1;
+    group.interested += isInterested(row) ? 1 : 0;
+    group.irrelevant += isIrrelevant(row) ? 1 : 0;
+    group.quotes += hasQuote(row) ? 1 : 0;
+  });
+
+  return [...groups.values()].map((group) => {
+    const interestRate = group.total ? Math.round((group.interested / group.total) * 100) : 0;
+    const irrelevantRate = group.total ? Math.round((group.irrelevant / group.total) * 100) : 0;
+    const quoteRate = group.total ? Math.round((group.quotes / group.total) * 100) : 0;
+    return {
+      ...group,
+      interestRate,
+      irrelevantRate,
+      quoteRate,
+      score: Math.max(0, Math.min(100, Math.round(interestRate * 0.7 + quoteRate * 0.4 - irrelevantRate * 0.35))),
+    };
+  });
+}
+
+function getDuplicatePhones(rows) {
+  const phones = new Map();
+  rows.forEach((row) => {
+    const phone = clean(row[columns.phone]).replace(/\D/g, "");
+    if (!phone) return;
+    if (!phones.has(phone)) {
+      phones.set(phone, { phone, count: 0, businesses: new Set() });
+    }
+    const item = phones.get(phone);
+    item.count += 1;
+    item.businesses.add(normalize(row[columns.business]));
+  });
+
+  return [...phones.values()]
+    .filter((item) => item.count > 1)
+    .map((item) => ({ ...item, businesses: [...item.businesses].slice(0, 4) }))
+    .sort((a, b) => b.count - a.count || a.phone.localeCompare(b.phone));
+}
+
+function topKeys(counts, limit) {
+  return Object.entries(counts)
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, limit)
+    .map(([key]) => key);
+}
+
+function extractKeywords(rows) {
+  const stopWords = new Set([
+    "לא", "כן", "את", "של", "עם", "על", "זה", "הוא", "היא", "אני", "אנחנו", "הם", "הן",
+    "אין", "יש", "היה", "הייתה", "יותר", "פחות", "גם", "כל", "או", "אם", "כי", "אל",
+    "לו", "לה", "לי", "בו", "בה", "מה", "מי", "אז", "רק", "כבר", "מאוד", "צריך",
+    "אמר", "אמרה", "אמרו", "ביקש", "ביקשה", "שוב", "ליד", "לקוח", "לקוחה",
+  ]);
+  const counts = {};
+
+  rows.forEach((row) => {
+    const text = clean(row[columns.notes])
+      .replace(/[^\u0590-\u05FFa-zA-Z0-9\s]/g, " ")
+      .toLowerCase();
+    text.split(/\s+/).forEach((word) => {
+      const value = word.trim();
+      if (value.length < 3 || stopWords.has(value) || /^\d+$/.test(value)) return;
+      counts[value] = (counts[value] || 0) + 1;
+    });
+  });
+
+  return Object.entries(counts)
+    .map(([word, count]) => ({ word, count }))
+    .filter((item) => item.count >= 2)
+    .sort((a, b) => b.count - a.count || a.word.localeCompare(b.word, "he"));
+}
+
+function isOpenLead(row) {
+  if (isIrrelevant(row)) return false;
+  const statusText = `${normalize(row[columns.leadStatus])} ${normalize(row[columns.saleStatus])} ${normalize(row[columns.closeReason])}`;
+  return /מעוניין|המשך טיפול|מעקב|פגישה|אין מענה|לחזור|ממתין|בטיפול/.test(statusText);
+}
+
+function getLatestDate(rows) {
+  const timestamps = rows.map((row) => row._createdDate?.getTime()).filter(Boolean);
+  return timestamps.length ? new Date(Math.max(...timestamps)) : null;
+}
+
+function getBestHour(rows) {
+  const counts = Array.from({ length: 24 }, (_, hour) => ({ hour, count: 0 }));
+  rows.forEach((row) => {
+    if (row._createdDate) counts[row._createdDate.getHours()].count += 1;
+  });
+  const best = counts.sort((a, b) => b.count - a.count)[0];
+  return best?.count ? best : null;
+}
+
+function calculateLeadScore(row) {
+  const reasons = [];
+  let score = 45;
+
+  if (isInterested(row)) {
+    score += 24;
+    reasons.push("עניין/טיפול");
+  }
+
+  if (hasQuote(row)) {
+    score += 14;
+    reasons.push("יש הצעת מחיר");
+  }
+
+  const potential = normalize(row[columns.potential]);
+  if (/basic|premium|גבוה|חם/i.test(potential)) {
+    score += 10;
+    reasons.push("פוטנציאל חיובי");
+  } else if (/לא רלוונטי/.test(potential)) {
+    score -= 28;
+    reasons.push("פוטנציאל לא רלוונטי");
+  } else if (/לא ידוע/.test(potential)) {
+    score -= 4;
+  }
+
+  if (isIrrelevant(row)) {
+    score -= 38;
+    reasons.push("לא רלוונטי");
+  }
+
+  const text = `${normalize(row[columns.leadStatus])} ${normalize(row[columns.saleStatus])} ${normalize(row[columns.notes])}`;
+  if (/פגישה|מעוניין|הצעה|מייל|שלחתי|ממתין|אתר/.test(text)) {
+    score += 8;
+    reasons.push("אות חיובי בהערות");
+  }
+  if (/אין מענה|נעלם|טלפון שגוי|מחפש עבודה|לא עונה/.test(text)) {
+    score -= 12;
+    reasons.push("סיכון בהערות");
+  }
+
+  if (!isValidPhone(row[columns.phone])) {
+    score -= 18;
+    reasons.push("טלפון לבדיקה");
+  }
+
+  if (!row._createdDate) {
+    score -= 6;
+    reasons.push("תאריך חסר");
+  }
+
+  if (normalize(row[columns.source]) === "לא צוין") {
+    score -= 5;
+  }
+
+  return {
+    score: Math.max(0, Math.min(100, Math.round(score))),
+    reasons: reasons.length ? reasons : ["ליד רגיל"],
+  };
+}
+
+function getPriorityLeads(rows) {
+  const latest = getLatestDate(state.rows) || new Date();
+  return rows
+    .filter((row) => !isIrrelevant(row) && (isOpenLead(row) || isInterested(row) || hasQuote(row)))
+    .map((row) => {
+      const quality = calculateLeadScore(row);
+      const age = row._createdDate ? daysBetween(row._createdDate, latest) : 0;
+      const urgency = Math.min(24, age * 4) + (hasQuote(row) ? 10 : 0) + (isOpenLead(row) ? 8 : 0);
+      return {
+        row,
+        age,
+        score: quality.score,
+        priority: quality.score + urgency,
+        reasons: [...quality.reasons, age ? `${age} ימים` : "חדש"],
+        action: getRecommendedAction(row, age, quality.score),
+      };
+    })
+    .sort((a, b) => b.priority - a.priority || b.score - a.score);
+}
+
+function getRecommendedAction(row, age, score) {
+  if (hasQuote(row)) return "לחזור על הצעת מחיר";
+  if (age >= 5) return "חזרה דחופה היום";
+  if (score >= 80) return "לתעדף לשיחה";
+  if (/אין מענה|לא עונה/.test(normalize(row[columns.notes]))) return "ניסיון התקשרות נוסף";
+  if (/ממתין|שלחתי|מייל/.test(normalize(row[columns.notes]))) return "מעקב אחרי מייל";
+  return "להמשיך טיפול";
+}
+
+function isValidPhone(value) {
+  const digits = clean(value).replace(/\D/g, "");
+  return digits.length >= 9 && digits.length <= 12;
+}
+
+function daysBetween(start, end) {
+  const ms = new Date(end.getFullYear(), end.getMonth(), end.getDate()) -
+    new Date(start.getFullYear(), start.getMonth(), start.getDate());
+  return Math.max(0, Math.round(ms / 86400000));
+}
+
+function renderLeadsTable() {
+  const visibleHeaders = [
+    columns.created,
+    columns.business,
+    columns.owner,
+    columns.source,
+    columns.potential,
+    columns.leadStatus,
+    columns.saleStatus,
+    columns.closeReason,
+    columns.notes,
+  ].filter((header) => state.headers.includes(header));
+
+  const head = `<thead><tr><th>ציון איכות</th>${visibleHeaders.map((header) => `<th>${escapeHtml(header)}</th>`).join("")}</tr></thead>`;
+  const body = state.filtered
+    .slice(0, 120)
+    .map((row) => {
+      const score = calculateLeadScore(row).score;
+      return `<tr><td><span class="score ${score >= 80 ? "hot" : ""}">${score}</span></td>${visibleHeaders.map((header) => `<td>${escapeHtml(row[header] || "-")}</td>`).join("")}</tr>`;
+    })
+    .join("");
+
+  el.leadsTable.innerHTML = `${head}<tbody>${body}</tbody>`;
+}
+
+function parseCsv(text) {
+  const rows = [];
+  let row = [];
+  let cell = "";
+  let inQuotes = false;
+
+  for (let index = 0; index < text.length; index += 1) {
+    const char = text[index];
+    const next = text[index + 1];
+
+    if (char === '"' && inQuotes && next === '"') {
+      cell += '"';
+      index += 1;
+    } else if (char === '"') {
+      inQuotes = !inQuotes;
+    } else if (char === "," && !inQuotes) {
+      row.push(cell);
+      cell = "";
+    } else if ((char === "\n" || char === "\r") && !inQuotes) {
+      if (char === "\r" && next === "\n") index += 1;
+      row.push(cell);
+      if (row.some((value) => value.trim() !== "")) rows.push(row);
+      row = [];
+      cell = "";
+    } else {
+      cell += char;
+    }
+  }
+
+  row.push(cell);
+  if (row.some((value) => value.trim() !== "")) rows.push(row);
+  return rows;
+}
+
+function fillSelect(select, values) {
+  select.innerHTML = [
+    `<option value="__all">הכל</option>`,
+    ...values.map((value) => `<option value="${escapeHtml(value)}">${escapeHtml(value)}</option>`),
+  ].join("");
+}
+
+function uniqueValues(rows, column) {
+  return [...new Set(rows.map((row) => normalize(row[column])))]
+    .filter(Boolean)
+    .sort((a, b) => a.localeCompare(b, "he"));
+}
+
+function countBy(rows, column) {
+  return rows.reduce((acc, row) => {
+    const key = normalize(row[column]);
+    acc[key] = (acc[key] || 0) + 1;
+    return acc;
+  }, {});
+}
+
+function countCloseReasonsForIrrelevant(rows) {
+  return rows.reduce((acc, row) => {
+    if (!isIrrelevant(row) || !hasRealCloseReason(row)) return acc;
+    const key = normalize(row[columns.closeReason]);
+    acc[key] = (acc[key] || 0) + 1;
+    return acc;
+  }, {});
+}
+
+function countByDate(rows) {
+  return rows.reduce((acc, row) => {
+    if (!row._createdDate) return acc;
+    const key = toDateInput(row._createdDate);
+    acc[key] = (acc[key] || 0) + 1;
+    return acc;
+  }, {});
+}
+
+function countByHour(rows) {
+  const counts = Array.from({ length: 24 }, (_, hour) => ({ hour, count: 0 }));
+  rows.forEach((row) => {
+    if (row._createdDate) counts[row._createdDate.getHours()].count += 1;
+  });
+  return counts;
+}
+
+function countByWeekday(rows) {
+  const names = ["ראשון", "שני", "שלישי", "רביעי", "חמישי", "שישי", "שבת"];
+  const counts = names.map((name, index) => ({ name, index, value: 0, interested: 0 }));
+  rows.forEach((row) => {
+    if (!row._createdDate) return;
+    const day = row._createdDate.getDay();
+    counts[day].value += 1;
+    counts[day].interested += isInterested(row) ? 1 : 0;
+  });
+  return counts;
+}
+
+function clean(value) {
+  return String(value ?? "").replace(/^\uFEFF/, "").trim();
+}
+
+function normalize(value) {
+  const cleaned = clean(value);
+  return cleaned && cleaned !== "-" ? cleaned : "לא צוין";
+}
+
+function isInterested(row) {
+  const lead = normalize(row[columns.leadStatus]);
+  const sale = normalize(row[columns.saleStatus]);
+  return /מעוניין|המשך טיפול|מעקב|פגישה|סגירה|נשלח|הצעה/.test(`${lead} ${sale}`);
+}
+
+function isIrrelevant(row) {
+  return /לא רלוונטי|טלפון שגוי|מחפש עבודה/.test(
+    `${normalize(row[columns.leadStatus])} ${normalize(row[columns.closeReason])} ${normalize(row[columns.potential])}`
+  );
+}
+
+function hasRealCloseReason(row) {
+  const reason = normalize(row[columns.closeReason]);
+  return reason !== "לא צוין";
+}
+
+function isOtherProcessWithoutCloseReason(row) {
+  return !hasRealCloseReason(row);
+}
+
+function hasQuote(row) {
+  return !["לא צוין", "לא", "-"].includes(normalize(row[columns.quoteSent])) ||
+    !["לא צוין", "-"].includes(normalize(row[columns.quoteStatus]));
+}
+
+function parseHebrewDate(value) {
+  const match = clean(value).match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})(?:\s+(\d{1,2}):(\d{2}))?/);
+  if (!match) return null;
+  const [, day, month, year, hour = "0", minute = "0"] = match;
+  return new Date(Number(year), Number(month) - 1, Number(day), Number(hour), Number(minute));
+}
+
+function toDateInput(date) {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+}
+
+function formatShortDate(dateKey) {
+  const [, month, day] = dateKey.split("-");
+  return `${day}/${month}`;
+}
+
+function formatDateLabel(dateKey) {
+  const [year, month, day] = dateKey.split("-");
+  return `${day}/${month}/${year}`;
+}
+
+function percent(value, total) {
+  return total ? `${Math.round((value / total) * 100)}%` : "0%";
+}
+
+function exportSummary() {
+  if (!state.filtered.length) {
+    alert("אין נתונים לייצוא.");
+    return;
+  }
+
+  const rows = [["פרמטר", "ערך", "כמות"]];
+  [
+    ["סטטוס ליד", countBy(state.filtered, columns.leadStatus)],
+    ["סטטוס מכירה", countBy(state.filtered, columns.saleStatus)],
+    ["מקור הגעה", countBy(state.filtered, columns.source)],
+    ["מנהל לקוח", countBy(state.filtered, columns.owner)],
+    ["פוטנציאל לקוח", countBy(state.filtered, columns.potential)],
+    ["סיבת סגירה ללא רלוונטיים", countCloseReasonsForIrrelevant(state.filtered)],
+  ].forEach(([label, counts]) => {
+    Object.entries(counts)
+      .sort((a, b) => b[1] - a[1])
+      .forEach(([value, count]) => rows.push([label, value, count]));
+  });
+
+  rows.push(["עברו תהליך אחר", "ללא סיבת סגירה", state.filtered.filter(isOtherProcessWithoutCloseReason).length]);
+
+  rows.push([]);
+  rows.push(["איכות מקור", "סה״כ", "מעוניינים", "לא רלוונטיים", "הצעות", "יחס עניין", "ציון איכות"]);
+  buildGroupStats(state.filtered, columns.source)
+    .sort((a, b) => b.score - a.score || b.total - a.total)
+    .forEach((group) => {
+      rows.push([group.label, group.total, group.interested, group.irrelevant, group.quotes, `${group.interestRate}%`, group.score]);
+    });
+
+  rows.push([]);
+  rows.push(["מגמה יומית", "כמות"]);
+  Object.entries(countByDate(state.filtered))
+    .sort((a, b) => a[0].localeCompare(b[0]))
+    .forEach(([date, count]) => rows.push([formatDateLabel(date), count]));
+
+  rows.push([]);
+  rows.push(["טלפונים כפולים", "כמות", "עסקים"]);
+  getDuplicatePhones(state.filtered).forEach((item) => {
+    rows.push([item.phone, item.count, item.businesses.join(", ")]);
+  });
+
+  rows.push([]);
+  rows.push(["שעה", "כמות לידים"]);
+  countByHour(state.filtered).forEach((item) => rows.push([`${String(item.hour).padStart(2, "0")}:00`, item.count]));
+
+  rows.push([]);
+  rows.push(["יום בשבוע", "כמות", "מעוניינים"]);
+  countByWeekday(state.filtered).forEach((item) => rows.push([item.name, item.value, item.interested]));
+
+  rows.push([]);
+  rows.push(["מנהל לקוח", "סה״כ", "מעוניינים", "לא רלוונטיים", "הצעות", "ציון"]);
+  buildGroupStats(state.filtered, columns.owner)
+    .sort((a, b) => b.score - a.score || b.total - a.total)
+    .forEach((group) => rows.push([group.label, group.total, group.interested, group.irrelevant, group.quotes, group.score]));
+
+  rows.push([]);
+  rows.push(["מילות מפתח בהערות", "כמות"]);
+  extractKeywords(state.filtered).slice(0, 40).forEach((item) => rows.push([item.word, item.count]));
+
+  rows.push([]);
+  rows.push(["לידים תקועים", "עסק", "תאריך", "סטטוס", "גיל בימים"]);
+  const latest = getLatestDate(state.rows) || new Date();
+  state.filtered
+    .filter((row) => row._createdDate && isOpenLead(row))
+    .map((row) => ({ row, age: daysBetween(row._createdDate, latest) }))
+    .filter((item) => item.age >= 3)
+    .sort((a, b) => b.age - a.age)
+    .forEach(({ row, age }) => rows.push(["ליד פתוח", row[columns.business], row[columns.created], normalize(row[columns.leadStatus]), age]));
+
+  rows.push([]);
+  rows.push(["לידים לטיפול מיידי", "ציון", "פעולה מומלצת", "עסק", "תאריך", "מנהל", "מקור", "סטטוס", "סיבה לדירוג"]);
+  getPriorityLeads(state.filtered).slice(0, 40).forEach(({ row, score, action, reasons }) => {
+    rows.push([
+      "לטיפול",
+      score,
+      action,
+      row[columns.business],
+      row[columns.created],
+      normalize(row[columns.owner]),
+      normalize(row[columns.source]),
+      normalize(row[columns.leadStatus]),
+      reasons.join(", "),
+    ]);
+  });
+
+  rows.push([]);
+  rows.push(["ציוני איכות לכל הלידים", "ציון", "עסק", "טלפון", "מנהל", "מקור", "סטטוס", "סיבות"]);
+  state.filtered.forEach((row) => {
+    const quality = calculateLeadScore(row);
+    rows.push([
+      "ליד",
+      quality.score,
+      row[columns.business],
+      row[columns.phone],
+      normalize(row[columns.owner]),
+      normalize(row[columns.source]),
+      normalize(row[columns.leadStatus]),
+      quality.reasons.join(", "),
+    ]);
+  });
+
+  const csv = rows.map((row) => row.map(csvEscape).join(",")).join("\n");
+  const blob = new Blob(["\uFEFF", csv], { type: "text/csv;charset=utf-8" });
+  const link = document.createElement("a");
+  link.href = URL.createObjectURL(blob);
+  link.download = "sales-statistics-summary.csv";
+  link.click();
+  URL.revokeObjectURL(link.href);
+}
+
+function csvEscape(value) {
+  return `"${String(value).replaceAll('"', '""')}"`;
+}
+
+function escapeHtml(value) {
+  return String(value ?? "")
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;")
+    .replaceAll("'", "&#039;");
+}
+
+function formatNumber(value) {
+  return new Intl.NumberFormat("he-IL").format(value);
+}
+
+  </script>
+</body>
+</html>
+
+
