@@ -59,6 +59,12 @@ const el = {
   staleLeadsTable: document.querySelector("#staleLeadsTable"),
   executiveReport: document.querySelector("#executiveReport"),
   scoreBucketsChart: document.querySelector("#scoreBucketsChart"),
+  targetInterest: document.querySelector("#targetInterestInput"),
+  targetQuote: document.querySelector("#targetQuoteInput"),
+  targetIrrelevant: document.querySelector("#targetIrrelevantInput"),
+  goalTracker: document.querySelector("#goalTracker"),
+  dataQualityCards: document.querySelector("#dataQualityCards"),
+  potentialQualityTable: document.querySelector("#potentialQualityTable"),
   priorityLeadsTable: document.querySelector("#priorityLeadsTable"),
   groupBy: document.querySelector("#groupBySelect"),
   groupTable: document.querySelector("#groupTable"),
@@ -112,7 +118,7 @@ el.resetBtn.addEventListener("click", () => {
 
 el.exportBtn.addEventListener("click", exportSummary);
 
-[el.search, el.fromDate, el.toDate, el.groupBy].forEach((input) => {
+[el.search, el.fromDate, el.toDate, el.groupBy, el.targetInterest, el.targetQuote, el.targetIrrelevant].forEach((input) => {
   input.addEventListener("input", applyFilters);
 });
 
@@ -215,6 +221,9 @@ function render() {
   renderStaleLeadsTable();
   renderExecutiveReport();
   renderScoreBuckets();
+  renderGoalTracker();
+  renderDataQualityCards();
+  renderPotentialQualityTable();
   renderPriorityLeadsTable();
   renderGroupTable();
   renderLeadsTable();
@@ -625,6 +634,103 @@ function renderScoreBuckets() {
   renderBarChart(el.scoreBucketsChart, buckets);
 }
 
+function renderGoalTracker() {
+  const total = state.filtered.length;
+  const interestRate = total ? Math.round((state.filtered.filter(isInterested).length / total) * 100) : 0;
+  const quoteRate = total ? Math.round((state.filtered.filter(hasQuote).length / total) * 100) : 0;
+  const irrelevantRate = total ? Math.round((state.filtered.filter(isIrrelevant).length / total) * 100) : 0;
+  const targets = [
+    {
+      label: "יחס עניין",
+      current: interestRate,
+      target: Number(el.targetInterest.value || 0),
+      type: "minimum",
+    },
+    {
+      label: "הצעות מחיר",
+      current: quoteRate,
+      target: Number(el.targetQuote.value || 0),
+      type: "minimum",
+    },
+    {
+      label: "לא רלוונטיים",
+      current: irrelevantRate,
+      target: Number(el.targetIrrelevant.value || 0),
+      type: "maximum",
+    },
+  ];
+
+  el.goalTracker.innerHTML = targets
+    .map((item) => {
+      const success = item.type === "minimum" ? item.current >= item.target : item.current <= item.target;
+      const progress = item.type === "minimum"
+        ? Math.min(100, item.target ? Math.round((item.current / item.target) * 100) : 100)
+        : Math.min(100, item.current ? Math.round((item.target / item.current) * 100) : 100);
+      const gap = item.type === "minimum" ? item.current - item.target : item.target - item.current;
+      return `
+        <article class="goal-card ${success ? "ok" : "warn"}">
+          <div>
+            <strong>${escapeHtml(item.label)}</strong>
+            <span>${item.current}% מול יעד ${item.target}%</span>
+          </div>
+          <div class="goal-progress"><b style="width:${Math.max(4, progress)}%"></b></div>
+          <small>${success ? "עומד ביעד" : `פער של ${Math.abs(gap)}%`}</small>
+        </article>`;
+    })
+    .join("");
+}
+
+function renderDataQualityCards() {
+  const stats = getDataQualityStats(state.filtered);
+  const cards = [
+    ["ציון איכות דאטה", `${stats.health}/100`, stats.health >= 85 ? "ok" : "warn"],
+    ["טלפונים לא תקינים", formatNumber(stats.invalidPhones), stats.invalidPhones ? "warn" : "ok"],
+    ["מקור חסר", formatNumber(stats.missingSource), stats.missingSource ? "warn" : "ok"],
+    ["מנהל חסר", formatNumber(stats.missingOwner), stats.missingOwner ? "warn" : "ok"],
+    ["סטטוס חסר", formatNumber(stats.missingStatus), stats.missingStatus ? "warn" : "ok"],
+    ["תאריך לא תקין", formatNumber(stats.invalidDates), stats.invalidDates ? "warn" : "ok"],
+  ];
+
+  el.dataQualityCards.innerHTML = cards
+    .map(([label, value, stateName]) => `
+      <article class="quality-card ${stateName}">
+        <span>${escapeHtml(label)}</span>
+        <strong>${escapeHtml(value)}</strong>
+      </article>`)
+    .join("");
+}
+
+function renderPotentialQualityTable() {
+  const groups = new Map();
+  state.filtered.forEach((row) => {
+    const key = normalize(row[columns.potential]);
+    if (!groups.has(key)) {
+      groups.set(key, { total: 0, interested: 0, irrelevant: 0, other: 0, quotes: 0, scoreSum: 0 });
+    }
+    const group = groups.get(key);
+    group.total += 1;
+    group.interested += isInterested(row) ? 1 : 0;
+    group.irrelevant += isIrrelevant(row) ? 1 : 0;
+    group.other += isOtherProcessWithoutCloseReason(row) ? 1 : 0;
+    group.quotes += hasQuote(row) ? 1 : 0;
+    group.scoreSum += calculateLeadScore(row).score;
+  });
+
+  el.potentialQualityTable.innerHTML = [...groups.entries()]
+    .sort((a, b) => (b[1].scoreSum / b[1].total) - (a[1].scoreSum / a[1].total))
+    .map(([label, group]) => `
+      <tr>
+        <td><span class="badge">${escapeHtml(label)}</span></td>
+        <td>${formatNumber(group.total)}</td>
+        <td>${formatNumber(group.interested)}</td>
+        <td>${formatNumber(group.irrelevant)}</td>
+        <td>${formatNumber(group.other)}</td>
+        <td>${formatNumber(group.quotes)}</td>
+        <td><span class="score">${Math.round(group.scoreSum / group.total)}</span></td>
+      </tr>`)
+    .join("");
+}
+
 function renderPriorityLeadsTable() {
   const priority = getPriorityLeads(state.filtered).slice(0, 18);
   el.priorityLeadsTable.innerHTML = priority.length
@@ -869,6 +975,36 @@ function getRecommendedAction(row, age, score) {
 function isValidPhone(value) {
   const digits = clean(value).replace(/\D/g, "");
   return digits.length >= 9 && digits.length <= 12;
+}
+
+function isMissingValue(value) {
+  const normalized = normalize(value);
+  return normalized === "לא צוין";
+}
+
+function getDataQualityStats(rows) {
+  const total = Math.max(1, rows.length);
+  const duplicateExtras = getDuplicatePhones(rows).reduce((sum, item) => sum + item.count - 1, 0);
+  const stats = rows.reduce((acc, row) => {
+    acc.invalidPhones += isValidPhone(row[columns.phone]) ? 0 : 1;
+    acc.missingSource += isMissingValue(row[columns.source]) ? 1 : 0;
+    acc.missingOwner += isMissingValue(row[columns.owner]) ? 1 : 0;
+    acc.missingStatus += isMissingValue(row[columns.leadStatus]) ? 1 : 0;
+    acc.invalidDates += row._createdDate ? 0 : 1;
+    return acc;
+  }, {
+    invalidPhones: 0,
+    missingSource: 0,
+    missingOwner: 0,
+    missingStatus: 0,
+    invalidDates: 0,
+  });
+
+  stats.duplicateExtras = duplicateExtras;
+  stats.totalIssues = stats.invalidPhones + stats.missingSource + stats.missingOwner +
+    stats.missingStatus + stats.invalidDates + duplicateExtras;
+  stats.health = Math.max(0, Math.min(100, 100 - Math.round((stats.totalIssues / (total * 2)) * 100)));
+  return stats;
 }
 
 function daysBetween(start, end) {
@@ -1158,6 +1294,41 @@ function exportSummary() {
       normalize(row[columns.leadStatus]),
       quality.reasons.join(", "),
     ]);
+  });
+
+  rows.push([]);
+  rows.push(["יעדים מול ביצועים", "ביצוע", "יעד"]);
+  rows.push(["יחס עניין", `${percent(state.filtered.filter(isInterested).length, state.filtered.length)}`, `${Number(el.targetInterest.value || 0)}%`]);
+  rows.push(["הצעות מחיר", `${percent(state.filtered.filter(hasQuote).length, state.filtered.length)}`, `${Number(el.targetQuote.value || 0)}%`]);
+  rows.push(["לא רלוונטיים", `${percent(state.filtered.filter(isIrrelevant).length, state.filtered.length)}`, `${Number(el.targetIrrelevant.value || 0)}%`]);
+
+  rows.push([]);
+  const qualityStats = getDataQualityStats(state.filtered);
+  rows.push(["איכות נתונים", "ערך"]);
+  rows.push(["ציון איכות דאטה", qualityStats.health]);
+  rows.push(["טלפונים לא תקינים", qualityStats.invalidPhones]);
+  rows.push(["מקור חסר", qualityStats.missingSource]);
+  rows.push(["מנהל חסר", qualityStats.missingOwner]);
+  rows.push(["סטטוס חסר", qualityStats.missingStatus]);
+  rows.push(["תאריך לא תקין", qualityStats.invalidDates]);
+  rows.push(["כפילויות עודפות", qualityStats.duplicateExtras]);
+
+  rows.push([]);
+  rows.push(["איכות לפי פוטנציאל", "סה״כ", "מעוניינים", "לא רלוונטיים", "תהליך אחר", "הצעות", "ציון ממוצע"]);
+  const potentialGroups = new Map();
+  state.filtered.forEach((row) => {
+    const key = normalize(row[columns.potential]);
+    if (!potentialGroups.has(key)) potentialGroups.set(key, { total: 0, interested: 0, irrelevant: 0, other: 0, quotes: 0, scoreSum: 0 });
+    const group = potentialGroups.get(key);
+    group.total += 1;
+    group.interested += isInterested(row) ? 1 : 0;
+    group.irrelevant += isIrrelevant(row) ? 1 : 0;
+    group.other += isOtherProcessWithoutCloseReason(row) ? 1 : 0;
+    group.quotes += hasQuote(row) ? 1 : 0;
+    group.scoreSum += calculateLeadScore(row).score;
+  });
+  [...potentialGroups.entries()].forEach(([label, group]) => {
+    rows.push([label, group.total, group.interested, group.irrelevant, group.other, group.quotes, Math.round(group.scoreSum / group.total)]);
   });
 
   const csv = rows.map((row) => row.map(csvEscape).join(",")).join("\n");
