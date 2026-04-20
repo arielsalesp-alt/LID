@@ -553,17 +553,25 @@ function renderOwnerPerformanceTable() {
 }
 
 function renderKeywordCloud() {
-  const keywords = extractKeywords(state.filtered).slice(0, 28);
-  const max = Math.max(1, ...keywords.map((item) => item.count));
+  const signals = extractConversationSignals(state.filtered);
+  const max = Math.max(1, ...signals.map((item) => item.count));
 
-  el.keywordCloud.innerHTML = keywords.length
-    ? keywords
+  el.keywordCloud.innerHTML = signals.length
+    ? signals
         .map((item) => {
-          const level = 0.86 + (item.count / max) * 0.7;
-          return `<span style="font-size:${level}rem">${escapeHtml(item.word)} <b>${formatNumber(item.count)}</b></span>`;
+          const width = Math.max(8, Math.round((item.count / max) * 100));
+          return `
+            <article class="signal-item">
+              <div>
+                <strong>${escapeHtml(item.label)}</strong>
+                <span>${escapeHtml(item.recommendation)}</span>
+              </div>
+              <b>${formatNumber(item.count)}</b>
+              <small><i style="width:${width}%"></i></small>
+            </article>`;
         })
         .join("")
-    : `<p class="muted">אין מספיק טקסט בהערות כדי לזהות מילים חוזרות.</p>`;
+    : `<p class="muted">אין מספיק הערות כדי לזהות אותות שיחה.</p>`;
 }
 
 function renderStaleLeadsTable() {
@@ -922,6 +930,62 @@ function extractKeywords(rows) {
     .map(([word, count]) => ({ word, count }))
     .filter((item) => item.count >= 2)
     .sort((a, b) => b.count - a.count || a.word.localeCompare(b.word, "he"));
+}
+
+function extractConversationSignals(rows) {
+  const definitions = [
+    {
+      label: "אין מענה / לא עונה",
+      pattern: /אין מענה|לא עונה|לא ענו|ניסיון נוסף/,
+      recommendation: "לתעדף לניסיון חזרה נוסף בשעות פעילות חזקות.",
+    },
+    {
+      label: "ביקש הצעת מחיר",
+      pattern: /הצעת מחיר|הצעה|מחיר|הצעת/,
+      recommendation: "לוודא שנשלחה הצעה ולעשות follow-up קצר.",
+    },
+    {
+      label: "נקבעה פגישה / הדגמה",
+      pattern: /פגישה|הדגמה|דמו|שיחה עם מנהל/,
+      recommendation: "להכין סיכום צורך לפני הפגישה ולסגור שלב הבא.",
+    },
+    {
+      label: "ממתין לאישור",
+      pattern: /ממתין|ממתינה|אישור|שותף|מנהל/,
+      recommendation: "לשלוח תזכורת עם ערך ברור וסיבה להתקדם.",
+    },
+    {
+      label: "בעיית תקציב",
+      pattern: /תקציב|יקר|עלות|מחיר גבוה|לא מתאים תקציבית/,
+      recommendation: "להציע מסלול כניסה או להסביר ROI קצר.",
+    },
+    {
+      label: "טלפון שגוי",
+      pattern: /טלפון שגוי|מספר לא|לא מחובר/,
+      recommendation: "לסמן לניקוי דאטה ולא להשאיר ברשימת follow-up.",
+    },
+    {
+      label: "מחפש עבודה",
+      pattern: /מחפש עבודה|משרה|קורות חיים/,
+      recommendation: "לסווג כלא רלוונטי ולהחריג ממדדי מכירה.",
+    },
+    {
+      label: "לקוח חם",
+      pattern: /לקוח חם|מעוניין|רוצה|ביקש שיחזרו|חזרה עד סוף היום/,
+      recommendation: "לתעדף לשיחה מהירה באותו יום.",
+    },
+  ];
+
+  return definitions
+    .map((definition) => {
+      const count = rows.filter((row) => {
+        const text = `${normalize(row[columns.notes])} ${normalize(row[columns.leadStatus])} ${normalize(row[columns.saleStatus])} ${normalize(row[columns.closeReason])}`;
+        return definition.pattern.test(text);
+      }).length;
+      return { ...definition, count };
+    })
+    .filter((item) => item.count > 0)
+    .sort((a, b) => b.count - a.count || a.label.localeCompare(b.label, "he"));
 }
 
 function isOpenLead(row) {
@@ -1312,8 +1376,8 @@ function exportSummary() {
     .forEach((group) => rows.push([group.label, group.total, group.interested, group.irrelevant, group.quotes, group.score]));
 
   rows.push([]);
-  rows.push(["מילות מפתח בהערות", "כמות"]);
-  extractKeywords(state.filtered).slice(0, 40).forEach((item) => rows.push([item.word, item.count]));
+  rows.push(["אותות מהערות", "כמות", "המלצה"]);
+  extractConversationSignals(state.filtered).forEach((item) => rows.push([item.label, item.count, item.recommendation]));
 
   rows.push([]);
   rows.push(["לידים תקועים", "עסק", "תאריך", "סטטוס", "גיל בימים"]);
