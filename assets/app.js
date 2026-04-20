@@ -27,6 +27,8 @@ const el = {
   fileName: document.querySelector("#fileName"),
   loadSample: document.querySelector("#loadSampleBtn"),
   exportBtn: document.querySelector("#exportBtn"),
+  exportPriorityBtn: document.querySelector("#exportPriorityBtn"),
+  copyReportBtn: document.querySelector("#copyReportBtn"),
   resetBtn: document.querySelector("#resetBtn"),
   empty: document.querySelector("#emptyState"),
   metrics: document.querySelector("#metrics"),
@@ -58,6 +60,7 @@ const el = {
   keywordCloud: document.querySelector("#keywordCloud"),
   staleLeadsTable: document.querySelector("#staleLeadsTable"),
   executiveReport: document.querySelector("#executiveReport"),
+  actionPlan: document.querySelector("#actionPlan"),
   scoreBucketsChart: document.querySelector("#scoreBucketsChart"),
   targetInterest: document.querySelector("#targetInterestInput"),
   targetQuote: document.querySelector("#targetQuoteInput"),
@@ -117,6 +120,8 @@ el.resetBtn.addEventListener("click", () => {
 });
 
 el.exportBtn.addEventListener("click", exportSummary);
+el.exportPriorityBtn.addEventListener("click", exportPriorityLeads);
+el.copyReportBtn.addEventListener("click", copyExecutiveReport);
 
 [el.search, el.fromDate, el.toDate, el.groupBy, el.targetInterest, el.targetQuote, el.targetIrrelevant].forEach((input) => {
   input.addEventListener("input", applyFilters);
@@ -220,6 +225,7 @@ function render() {
   renderKeywordCloud();
   renderStaleLeadsTable();
   renderExecutiveReport();
+  renderActionPlan();
   renderScoreBuckets();
   renderGoalTracker();
   renderDataQualityCards();
@@ -613,6 +619,61 @@ function renderExecutiveReport() {
   el.executiveReport.innerHTML = cards
     .map(([title, body]) => `<article class="report-card"><strong>${escapeHtml(title)}</strong><span>${escapeHtml(body)}</span></article>`)
     .join("");
+}
+
+function renderActionPlan() {
+  const actions = buildActionPlan();
+  el.actionPlan.innerHTML = actions.length
+    ? actions
+        .map((action, index) => `
+          <article class="action-item">
+            <strong>${index + 1}</strong>
+            <span>${escapeHtml(action)}</span>
+          </article>`)
+        .join("")
+    : `<article class="action-item"><strong>1</strong><span>אין מספיק נתונים לבניית תוכנית פעולה.</span></article>`;
+}
+
+function buildActionPlan() {
+  const total = state.filtered.length;
+  if (!total) return [];
+
+  const plan = [];
+  const priority = getPriorityLeads(state.filtered);
+  const qualityStats = getDataQualityStats(state.filtered);
+  const interestRate = Math.round((state.filtered.filter(isInterested).length / total) * 100);
+  const quoteRate = Math.round((state.filtered.filter(hasQuote).length / total) * 100);
+  const irrelevantRate = Math.round((state.filtered.filter(isIrrelevant).length / total) * 100);
+  const targetInterest = Number(el.targetInterest.value || 0);
+  const targetQuote = Number(el.targetQuote.value || 0);
+  const targetIrrelevant = Number(el.targetIrrelevant.value || 0);
+  const sourceStats = buildGroupStats(state.filtered, columns.source).filter((group) => group.total >= 2);
+  const weakSource = [...sourceStats].sort((a, b) => a.score - b.score || b.total - a.total)[0];
+  const bestSource = [...sourceStats].sort((a, b) => b.score - a.score || b.total - a.total)[0];
+
+  if (priority.length) {
+    plan.push(`לטפל קודם ב-${formatNumber(Math.min(priority.length, 10))} הלידים הראשונים בטבלת "לידים לטיפול מיידי".`);
+  }
+  if (interestRate < targetInterest) {
+    plan.push(`יחס העניין נמוך מהיעד ב-${targetInterest - interestRate}%. כדאי לבדוק מסרים ומקורות חלשים.`);
+  }
+  if (quoteRate < targetQuote) {
+    plan.push(`יחס הצעות המחיר נמוך מהיעד ב-${targetQuote - quoteRate}%. מומלץ להגדיר קריטריון ברור למעבר להצעה.`);
+  }
+  if (irrelevantRate > targetIrrelevant) {
+    plan.push(`אחוז הלא רלוונטיים גבוה מהיעד ב-${irrelevantRate - targetIrrelevant}%. כדאי לשפר סינון מוקדם בקמפיינים.`);
+  }
+  if (qualityStats.health < 85) {
+    plan.push(`ציון איכות הדאטה הוא ${qualityStats.health}/100. להתחיל מניקוי טלפונים, מקורות חסרים וכפילויות.`);
+  }
+  if (weakSource && bestSource && weakSource.label !== bestSource.label) {
+    plan.push(`להשוות בין ${bestSource.label} לבין ${weakSource.label}: מקור אחד חזק והשני דורש בדיקה.`);
+  }
+  if (!plan.length) {
+    plan.push("המדדים המרכזיים עומדים ביעד. מומלץ להגדיל נפח לידים מהמקורות החזקים.");
+  }
+
+  return plan.slice(0, 6);
 }
 
 function renderScoreBuckets() {
@@ -1336,6 +1397,86 @@ function exportSummary() {
   const link = document.createElement("a");
   link.href = URL.createObjectURL(blob);
   link.download = "sales-statistics-summary.csv";
+  link.click();
+  URL.revokeObjectURL(link.href);
+}
+
+function exportPriorityLeads() {
+  const priority = getPriorityLeads(state.filtered);
+  if (!priority.length) {
+    alert("אין לידים לטיפול מיידי בסינון הנוכחי.");
+    return;
+  }
+
+  const rows = [[
+    "ציון",
+    "פעולה מומלצת",
+    "עסק",
+    "תאריך",
+    "מנהל",
+    "מקור",
+    "סטטוס",
+    "סיבה לדירוג",
+  ]];
+
+  priority.forEach(({ row, score, action, reasons }) => {
+    rows.push([
+      score,
+      action,
+      row[columns.business],
+      row[columns.created],
+      normalize(row[columns.owner]),
+      normalize(row[columns.source]),
+      normalize(row[columns.leadStatus]),
+      reasons.join(", "),
+    ]);
+  });
+
+  downloadCsv(rows, "priority-leads.csv");
+}
+
+async function copyExecutiveReport() {
+  const text = buildExecutiveReportText();
+  if (!text) {
+    alert("אין דוח להעתקה. הפעל ניתוח קודם.");
+    return;
+  }
+
+  try {
+    await navigator.clipboard.writeText(text);
+    alert("דוח המנהלים הועתק ללוח.");
+  } catch (error) {
+    const textarea = document.createElement("textarea");
+    textarea.value = text;
+    document.body.appendChild(textarea);
+    textarea.select();
+    document.execCommand("copy");
+    textarea.remove();
+    alert("דוח המנהלים הועתק ללוח.");
+  }
+}
+
+function buildExecutiveReportText() {
+  if (!state.filtered.length) return "";
+  const lines = [
+    "דוח מנהלים - מערכת לניתוח סטטיסטי של מכירות",
+    `סה״כ לידים: ${formatNumber(state.filtered.length)}`,
+    `מעוניינים / בטיפול: ${formatNumber(state.filtered.filter(isInterested).length)}`,
+    `לא רלוונטיים: ${formatNumber(state.filtered.filter(isIrrelevant).length)}`,
+    `הצעות מחיר: ${formatNumber(state.filtered.filter(hasQuote).length)}`,
+    "",
+    "תוכנית פעולה:",
+    ...buildActionPlan().map((item, index) => `${index + 1}. ${item}`),
+  ];
+  return lines.join("\n");
+}
+
+function downloadCsv(rows, filename) {
+  const csv = rows.map((row) => row.map(csvEscape).join(",")).join("\n");
+  const blob = new Blob(["\uFEFF", csv], { type: "text/csv;charset=utf-8" });
+  const link = document.createElement("a");
+  link.href = URL.createObjectURL(blob);
+  link.download = filename;
   link.click();
   URL.revokeObjectURL(link.href);
 }

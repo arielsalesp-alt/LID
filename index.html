@@ -575,6 +575,38 @@ select {
   background: linear-gradient(90deg, var(--green), var(--amber));
 }
 
+.action-list {
+  display: grid;
+  gap: 10px;
+}
+
+.action-item {
+  display: grid;
+  grid-template-columns: 42px 1fr;
+  gap: 12px;
+  align-items: center;
+  padding: 14px;
+  border-radius: 18px;
+  background: rgba(255, 255, 255, 0.72);
+  border: 1px solid rgba(31, 122, 77, 0.14);
+}
+
+.action-item strong {
+  display: grid;
+  place-items: center;
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  color: #fff;
+  background: var(--green);
+}
+
+.action-item span {
+  color: var(--muted);
+  font-weight: 800;
+  line-height: 1.6;
+}
+
 .bar-row {
   display: grid;
   grid-template-columns: minmax(90px, 180px) minmax(0, 1fr) auto;
@@ -761,6 +793,8 @@ tr:last-child td {
         <div class="actions">
           <button id="loadSampleBtn" type="button">הפעל ניתוח סטטיסטי</button>
           <button id="exportBtn" type="button" class="ghost">ייצא סיכום CSV</button>
+          <button id="exportPriorityBtn" type="button" class="ghost">ייצא לידים לטיפול</button>
+          <button id="copyReportBtn" type="button" class="ghost">העתק דוח מנהלים</button>
           <button id="resetBtn" type="button" class="ghost">נקה סינונים</button>
         </div>
       </div>
@@ -1021,6 +1055,17 @@ tr:last-child td {
         <div id="executiveReport" class="report-grid"></div>
       </article>
 
+      <article class="panel wide">
+        <div class="section-head">
+          <div>
+            <p class="eyebrow">תוכנית פעולה</p>
+            <h2>מה לעשות עכשיו?</h2>
+          </div>
+          <span class="muted">נבנה לפי הדאטה המסונן והיעדים שהוגדרו</span>
+        </div>
+        <div id="actionPlan" class="action-list"></div>
+      </article>
+
       <article class="panel">
         <div class="section-head">
           <div>
@@ -1192,6 +1237,8 @@ const el = {
   fileName: document.querySelector("#fileName"),
   loadSample: document.querySelector("#loadSampleBtn"),
   exportBtn: document.querySelector("#exportBtn"),
+  exportPriorityBtn: document.querySelector("#exportPriorityBtn"),
+  copyReportBtn: document.querySelector("#copyReportBtn"),
   resetBtn: document.querySelector("#resetBtn"),
   empty: document.querySelector("#emptyState"),
   metrics: document.querySelector("#metrics"),
@@ -1223,6 +1270,7 @@ const el = {
   keywordCloud: document.querySelector("#keywordCloud"),
   staleLeadsTable: document.querySelector("#staleLeadsTable"),
   executiveReport: document.querySelector("#executiveReport"),
+  actionPlan: document.querySelector("#actionPlan"),
   scoreBucketsChart: document.querySelector("#scoreBucketsChart"),
   targetInterest: document.querySelector("#targetInterestInput"),
   targetQuote: document.querySelector("#targetQuoteInput"),
@@ -1282,6 +1330,8 @@ el.resetBtn.addEventListener("click", () => {
 });
 
 el.exportBtn.addEventListener("click", exportSummary);
+el.exportPriorityBtn.addEventListener("click", exportPriorityLeads);
+el.copyReportBtn.addEventListener("click", copyExecutiveReport);
 
 [el.search, el.fromDate, el.toDate, el.groupBy, el.targetInterest, el.targetQuote, el.targetIrrelevant].forEach((input) => {
   input.addEventListener("input", applyFilters);
@@ -1385,6 +1435,7 @@ function render() {
   renderKeywordCloud();
   renderStaleLeadsTable();
   renderExecutiveReport();
+  renderActionPlan();
   renderScoreBuckets();
   renderGoalTracker();
   renderDataQualityCards();
@@ -1778,6 +1829,61 @@ function renderExecutiveReport() {
   el.executiveReport.innerHTML = cards
     .map(([title, body]) => `<article class="report-card"><strong>${escapeHtml(title)}</strong><span>${escapeHtml(body)}</span></article>`)
     .join("");
+}
+
+function renderActionPlan() {
+  const actions = buildActionPlan();
+  el.actionPlan.innerHTML = actions.length
+    ? actions
+        .map((action, index) => `
+          <article class="action-item">
+            <strong>${index + 1}</strong>
+            <span>${escapeHtml(action)}</span>
+          </article>`)
+        .join("")
+    : `<article class="action-item"><strong>1</strong><span>אין מספיק נתונים לבניית תוכנית פעולה.</span></article>`;
+}
+
+function buildActionPlan() {
+  const total = state.filtered.length;
+  if (!total) return [];
+
+  const plan = [];
+  const priority = getPriorityLeads(state.filtered);
+  const qualityStats = getDataQualityStats(state.filtered);
+  const interestRate = Math.round((state.filtered.filter(isInterested).length / total) * 100);
+  const quoteRate = Math.round((state.filtered.filter(hasQuote).length / total) * 100);
+  const irrelevantRate = Math.round((state.filtered.filter(isIrrelevant).length / total) * 100);
+  const targetInterest = Number(el.targetInterest.value || 0);
+  const targetQuote = Number(el.targetQuote.value || 0);
+  const targetIrrelevant = Number(el.targetIrrelevant.value || 0);
+  const sourceStats = buildGroupStats(state.filtered, columns.source).filter((group) => group.total >= 2);
+  const weakSource = [...sourceStats].sort((a, b) => a.score - b.score || b.total - a.total)[0];
+  const bestSource = [...sourceStats].sort((a, b) => b.score - a.score || b.total - a.total)[0];
+
+  if (priority.length) {
+    plan.push(`לטפל קודם ב-${formatNumber(Math.min(priority.length, 10))} הלידים הראשונים בטבלת "לידים לטיפול מיידי".`);
+  }
+  if (interestRate < targetInterest) {
+    plan.push(`יחס העניין נמוך מהיעד ב-${targetInterest - interestRate}%. כדאי לבדוק מסרים ומקורות חלשים.`);
+  }
+  if (quoteRate < targetQuote) {
+    plan.push(`יחס הצעות המחיר נמוך מהיעד ב-${targetQuote - quoteRate}%. מומלץ להגדיר קריטריון ברור למעבר להצעה.`);
+  }
+  if (irrelevantRate > targetIrrelevant) {
+    plan.push(`אחוז הלא רלוונטיים גבוה מהיעד ב-${irrelevantRate - targetIrrelevant}%. כדאי לשפר סינון מוקדם בקמפיינים.`);
+  }
+  if (qualityStats.health < 85) {
+    plan.push(`ציון איכות הדאטה הוא ${qualityStats.health}/100. להתחיל מניקוי טלפונים, מקורות חסרים וכפילויות.`);
+  }
+  if (weakSource && bestSource && weakSource.label !== bestSource.label) {
+    plan.push(`להשוות בין ${bestSource.label} לבין ${weakSource.label}: מקור אחד חזק והשני דורש בדיקה.`);
+  }
+  if (!plan.length) {
+    plan.push("המדדים המרכזיים עומדים ביעד. מומלץ להגדיל נפח לידים מהמקורות החזקים.");
+  }
+
+  return plan.slice(0, 6);
 }
 
 function renderScoreBuckets() {
@@ -2501,6 +2607,86 @@ function exportSummary() {
   const link = document.createElement("a");
   link.href = URL.createObjectURL(blob);
   link.download = "sales-statistics-summary.csv";
+  link.click();
+  URL.revokeObjectURL(link.href);
+}
+
+function exportPriorityLeads() {
+  const priority = getPriorityLeads(state.filtered);
+  if (!priority.length) {
+    alert("אין לידים לטיפול מיידי בסינון הנוכחי.");
+    return;
+  }
+
+  const rows = [[
+    "ציון",
+    "פעולה מומלצת",
+    "עסק",
+    "תאריך",
+    "מנהל",
+    "מקור",
+    "סטטוס",
+    "סיבה לדירוג",
+  ]];
+
+  priority.forEach(({ row, score, action, reasons }) => {
+    rows.push([
+      score,
+      action,
+      row[columns.business],
+      row[columns.created],
+      normalize(row[columns.owner]),
+      normalize(row[columns.source]),
+      normalize(row[columns.leadStatus]),
+      reasons.join(", "),
+    ]);
+  });
+
+  downloadCsv(rows, "priority-leads.csv");
+}
+
+async function copyExecutiveReport() {
+  const text = buildExecutiveReportText();
+  if (!text) {
+    alert("אין דוח להעתקה. הפעל ניתוח קודם.");
+    return;
+  }
+
+  try {
+    await navigator.clipboard.writeText(text);
+    alert("דוח המנהלים הועתק ללוח.");
+  } catch (error) {
+    const textarea = document.createElement("textarea");
+    textarea.value = text;
+    document.body.appendChild(textarea);
+    textarea.select();
+    document.execCommand("copy");
+    textarea.remove();
+    alert("דוח המנהלים הועתק ללוח.");
+  }
+}
+
+function buildExecutiveReportText() {
+  if (!state.filtered.length) return "";
+  const lines = [
+    "דוח מנהלים - מערכת לניתוח סטטיסטי של מכירות",
+    `סה״כ לידים: ${formatNumber(state.filtered.length)}`,
+    `מעוניינים / בטיפול: ${formatNumber(state.filtered.filter(isInterested).length)}`,
+    `לא רלוונטיים: ${formatNumber(state.filtered.filter(isIrrelevant).length)}`,
+    `הצעות מחיר: ${formatNumber(state.filtered.filter(hasQuote).length)}`,
+    "",
+    "תוכנית פעולה:",
+    ...buildActionPlan().map((item, index) => `${index + 1}. ${item}`),
+  ];
+  return lines.join("\n");
+}
+
+function downloadCsv(rows, filename) {
+  const csv = rows.map((row) => row.map(csvEscape).join(",")).join("\n");
+  const blob = new Blob(["\uFEFF", csv], { type: "text/csv;charset=utf-8" });
+  const link = document.createElement("a");
+  link.href = URL.createObjectURL(blob);
+  link.download = filename;
   link.click();
   URL.revokeObjectURL(link.href);
 }
