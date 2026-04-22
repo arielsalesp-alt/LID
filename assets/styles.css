@@ -282,6 +282,18 @@ button.ghost {
   line-height: 1.6;
 }
 
+.version-badge {
+  display: inline-flex;
+  margin: 0;
+  margin-top: 10px;
+  border-radius: 999px;
+  padding: 8px 12px;
+  color: #7a321c;
+  background: rgba(239, 184, 79, 0.22);
+  font-size: 0.9rem;
+  font-weight: 900;
+}
+
 .insights-panel {
   margin-bottom: 18px;
 }

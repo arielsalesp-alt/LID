@@ -285,7 +285,16 @@ function render() {
 function renderCommandCenter() {
   const total = state.filtered.length;
   if (!total) {
-    el.commandCenterCards.innerHTML = `<article class="command-card"><strong>אין נתונים להצגה</strong><span>נקה סינונים או טען קובץ כדי לבנות מסך מרכזי.</span></article>`;
+    el.commandCenterCards.innerHTML = `
+      <article class="command-card">
+        <strong>מרכז הבקרה מוכן</strong>
+        <span>לחץ על "הפעל ניתוח סטטיסטי" או העלה קובץ CSV כדי להציג KPI, דוחות ומסקנות.</span>
+      </article>
+      <article class="command-card">
+        <strong>מה תקבל כאן?</strong>
+        <span>מסך מרכזי עם סיכום מצב, מעבר בין דוחות, מסקנות שיווק, ביצועי צוות וסיכונים.</span>
+      </article>`;
+    updateViewSummary();
     return;
   }
 

@@ -289,6 +289,18 @@ button.ghost {
   line-height: 1.6;
 }
 
+.version-badge {
+  display: inline-flex;
+  margin: 0;
+  margin-top: 10px;
+  border-radius: 999px;
+  padding: 8px 12px;
+  color: #7a321c;
+  background: rgba(239, 184, 79, 0.22);
+  font-size: 0.9rem;
+  font-weight: 900;
+}
+
 .insights-panel {
   margin-bottom: 18px;
 }
@@ -990,11 +1002,12 @@ tr:last-child td {
       </div>
     </section>
 
-    <section class="panel command-center" id="commandCenter" hidden>
+    <section class="panel command-center" id="commandCenter">
       <div class="section-head">
         <div>
           <p class="eyebrow">מרכז בקרה</p>
           <h2>מסך מרכזי לקבלת החלטות</h2>
+          <p class="version-badge">גרסה חדשה: מרכז בקרה ודוחות בלחיצת כפתור</p>
         </div>
         <p id="viewSummary" class="muted"></p>
       </div>
@@ -1715,7 +1728,16 @@ function render() {
 function renderCommandCenter() {
   const total = state.filtered.length;
   if (!total) {
-    el.commandCenterCards.innerHTML = `<article class="command-card"><strong>אין נתונים להצגה</strong><span>נקה סינונים או טען קובץ כדי לבנות מסך מרכזי.</span></article>`;
+    el.commandCenterCards.innerHTML = `
+      <article class="command-card">
+        <strong>מרכז הבקרה מוכן</strong>
+        <span>לחץ על "הפעל ניתוח סטטיסטי" או העלה קובץ CSV כדי להציג KPI, דוחות ומסקנות.</span>
+      </article>
+      <article class="command-card">
+        <strong>מה תקבל כאן?</strong>
+        <span>מסך מרכזי עם סיכום מצב, מעבר בין דוחות, מסקנות שיווק, ביצועי צוות וסיכונים.</span>
+      </article>`;
+    updateViewSummary();
     return;
   }
 
