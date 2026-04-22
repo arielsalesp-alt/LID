@@ -20,6 +20,7 @@ const state = {
   filtered: [],
   headers: [],
   sourceName: "",
+  activeView: "overview",
 };
 
 const el = {
@@ -35,6 +36,9 @@ const el = {
   insightsPanel: document.querySelector("#insightsPanel"),
   insightsList: document.querySelector("#insightsList"),
   filtersPanel: document.querySelector("#filtersPanel"),
+  commandCenter: document.querySelector("#commandCenter"),
+  commandCenterCards: document.querySelector("#commandCenterCards"),
+  viewSummary: document.querySelector("#viewSummary"),
   analytics: document.querySelector("#analytics"),
   resultCount: document.querySelector("#resultCount"),
   search: document.querySelector("#searchInput"),
@@ -56,7 +60,9 @@ const el = {
   hourChart: document.querySelector("#hourChart"),
   weekdayChart: document.querySelector("#weekdayChart"),
   sourceStatusMatrix: document.querySelector("#sourceStatusMatrix"),
+  sourceRecommendationsTable: document.querySelector("#sourceRecommendationsTable"),
   ownerPerformanceTable: document.querySelector("#ownerPerformanceTable"),
+  ownerFocusTable: document.querySelector("#ownerFocusTable"),
   keywordCloud: document.querySelector("#keywordCloud"),
   staleLeadsTable: document.querySelector("#staleLeadsTable"),
   executiveReport: document.querySelector("#executiveReport"),
@@ -67,11 +73,22 @@ const el = {
   targetIrrelevant: document.querySelector("#targetIrrelevantInput"),
   goalTracker: document.querySelector("#goalTracker"),
   dataQualityCards: document.querySelector("#dataQualityCards"),
+  agingBuckets: document.querySelector("#agingBuckets"),
   potentialQualityTable: document.querySelector("#potentialQualityTable"),
   priorityLeadsTable: document.querySelector("#priorityLeadsTable"),
   groupBy: document.querySelector("#groupBySelect"),
   groupTable: document.querySelector("#groupTable"),
   leadsTable: document.querySelector("#leadsTable"),
+  reportTabs: [...document.querySelectorAll(".report-tab")],
+  reportViews: [...document.querySelectorAll(".report-view")],
+};
+
+const viewDescriptions = {
+  overview: "מבט על על כל המערכת: סטטוסים, יעדים, ציון איכות והמלצות פעולה.",
+  acquisition: "מראה מאיפה הלידים מגיעים, מתי הם מגיעים, ואילו ערוצים מייצרים איכות מול רעש.",
+  team: "משקף ביצועי צוות, עומסים, לידים חמים ואיפה כדאי לחלק משימות מחדש.",
+  quality: "מאתר חסמים, בעיות דאטה, גיל לידים ואותות שחוזרים בשיחות.",
+  operations: "מרכז את המשימות המיידיות, הלידים התקועים, טבלאות עבודה והרשומות עצמן.",
 };
 
 const filterMap = [
@@ -106,7 +123,7 @@ el.loadSample.addEventListener("click", async () => {
     // GitHub Pages can still run from a single HTML file without a data folder.
   }
 
-  alert("?? ???? ???? ?????. ???? ?????? CSV ????? ??? ????? ????.");
+  alert("לא נמצא קובץ דוגמה. אפשר להעלות קובץ CSV ידני או לבדוק שחבילת המערכת מלאה.");
 });
 
 el.resetBtn.addEventListener("click", () => {
@@ -129,6 +146,12 @@ el.copyReportBtn.addEventListener("click", copyExecutiveReport);
 
 filterMap.forEach(([select]) => {
   select.addEventListener("change", applyFilters);
+});
+
+el.reportTabs.forEach((button) => {
+  button.addEventListener("click", () => {
+    setActiveView(button.dataset.view);
+  });
 });
 
 function loadCsv(text, name) {
@@ -155,8 +178,10 @@ function loadCsv(text, name) {
   el.metrics.hidden = false;
   el.insightsPanel.hidden = false;
   el.filtersPanel.hidden = false;
+  el.commandCenter.hidden = false;
   el.analytics.hidden = false;
   buildControls();
+  setActiveView(state.activeView);
   applyFilters();
 }
 
@@ -189,6 +214,23 @@ function buildControls() {
   }
 }
 
+function setActiveView(view) {
+  state.activeView = viewDescriptions[view] ? view : "overview";
+
+  el.reportTabs.forEach((button) => {
+    const active = button.dataset.view === state.activeView;
+    button.classList.toggle("active", active);
+    button.classList.toggle("ghost", !active);
+    button.setAttribute("aria-pressed", active ? "true" : "false");
+  });
+
+  el.reportViews.forEach((panel) => {
+    panel.classList.toggle("active", panel.dataset.view === state.activeView);
+  });
+
+  updateViewSummary();
+}
+
 function applyFilters() {
   const search = el.search.value.trim().toLowerCase();
   const from = el.fromDate.value ? new Date(`${el.fromDate.value}T00:00:00`) : null;
@@ -211,6 +253,7 @@ function render() {
   renderMetrics();
   renderInsights();
   el.resultCount.textContent = `${formatNumber(state.filtered.length)} מתוך ${formatNumber(state.rows.length)} לידים`;
+  renderCommandCenter();
   renderBarChart(el.leadStatusChart, countBy(state.filtered, columns.leadStatus));
   renderBarChart(el.sourceChart, countBy(state.filtered, columns.source));
   renderFunnel();
@@ -218,10 +261,12 @@ function render() {
   renderBarChart(el.closeReasonChart, countCloseReasonsForIrrelevant(state.filtered));
   renderDuplicateTable();
   renderSourceQualityTable();
+  renderSourceRecommendationsTable();
   renderHourChart();
   renderWeekdayChart();
   renderSourceStatusMatrix();
   renderOwnerPerformanceTable();
+  renderOwnerFocusTable();
   renderKeywordCloud();
   renderStaleLeadsTable();
   renderExecutiveReport();
@@ -229,10 +274,80 @@ function render() {
   renderScoreBuckets();
   renderGoalTracker();
   renderDataQualityCards();
+  renderAgingBuckets();
   renderPotentialQualityTable();
   renderPriorityLeadsTable();
   renderGroupTable();
   renderLeadsTable();
+  updateViewSummary();
+}
+
+function renderCommandCenter() {
+  const total = state.filtered.length;
+  if (!total) {
+    el.commandCenterCards.innerHTML = `<article class="command-card"><strong>אין נתונים להצגה</strong><span>נקה סינונים או טען קובץ כדי לבנות מסך מרכזי.</span></article>`;
+    return;
+  }
+
+  const averageScore = getAverageLeadScore(state.filtered);
+  const bestSource = buildGroupStats(state.filtered, columns.source)
+    .filter((group) => group.total >= 2)
+    .sort((a, b) => b.score - a.score || b.total - a.total)[0];
+  const mainRisk = getMainRiskText();
+  const actions = buildActionPlan();
+  const openLeads = state.filtered.filter(isOpenLead).length;
+
+  const cards = [
+    ["מצב כללי", `${formatNumber(total)} לידים בסינון הנוכחי עם ציון איכות ממוצע ${averageScore}/100.`],
+    ["מוקד הזדמנות", bestSource ? `${bestSource.label} בולט כמקור איכותי עם ${bestSource.interestRate}% יחס עניין.` : "אין עדיין מספיק עומק להשוואת מקורות."],
+    ["מוקד סיכון", mainRisk],
+    ["פוקוס ניהולי", `${formatNumber(openLeads)} לידים עדיין פתוחים. ${actions[0] || "כרגע אין עומס חריג שמצריך פעולה מיידית."}`],
+  ];
+
+  el.commandCenterCards.innerHTML = cards
+    .map(([title, body]) => `<article class="command-card"><strong>${escapeHtml(title)}</strong><span>${escapeHtml(body)}</span></article>`)
+    .join("");
+}
+
+function updateViewSummary() {
+  if (!el.viewSummary) return;
+
+  const total = state.filtered.length;
+  const summary = viewDescriptions[state.activeView] || viewDescriptions.overview;
+  if (!total) {
+    el.viewSummary.textContent = summary;
+    return;
+  }
+
+  if (state.activeView === "acquisition") {
+    const bestSource = buildGroupStats(state.filtered, columns.source)
+      .filter((group) => group.total >= 2)
+      .sort((a, b) => b.score - a.score || b.total - a.total)[0];
+    el.viewSummary.textContent = bestSource
+      ? `${summary} כרגע ${bestSource.label} מוביל באיכות.`
+      : summary;
+    return;
+  }
+
+  if (state.activeView === "team") {
+    const stale = getPriorityLeads(state.filtered).filter((item) => item.age >= 3).length;
+    el.viewSummary.textContent = `${summary} יש ${formatNumber(stale)} לידים דחופים שדורשים חלוקת טיפול.`;
+    return;
+  }
+
+  if (state.activeView === "quality") {
+    const mainRisk = getMainRiskText();
+    el.viewSummary.textContent = `${summary} כרגע בולט: ${mainRisk}`;
+    return;
+  }
+
+  if (state.activeView === "operations") {
+    const priority = getPriorityLeads(state.filtered).length;
+    el.viewSummary.textContent = `${summary} ${formatNumber(priority)} לידים נמצאו לטיפול מהיר.`;
+    return;
+  }
+
+  el.viewSummary.textContent = summary;
 }
 
 function renderMetrics() {
@@ -453,6 +568,22 @@ function renderSourceQualityTable() {
     : `<tr><td colspan="7" class="muted">אין נתונים להצגה.</td></tr>`;
 }
 
+function renderSourceRecommendationsTable() {
+  const rows = buildSourceRecommendations(state.filtered);
+  el.sourceRecommendationsTable.innerHTML = rows.length
+    ? rows
+        .map((item) => `
+          <tr>
+            <td><span class="badge">${escapeHtml(item.label)}</span></td>
+            <td>${formatNumber(item.total)}</td>
+            <td><span class="score">${item.score}</span></td>
+            <td>${escapeHtml(item.highlight)}</td>
+            <td>${escapeHtml(item.recommendation)}</td>
+          </tr>`)
+        .join("")
+    : `<tr><td colspan="5" class="muted">אין מספיק מקורות כדי לגבש המלצה.</td></tr>`;
+}
+
 function renderHourChart() {
   const counts = Array.from({ length: 24 }, (_, hour) => ({ hour, value: 0 }));
   state.filtered.forEach((row) => {
@@ -550,6 +681,25 @@ function renderOwnerPerformanceTable() {
           </tr>`)
         .join("")
     : `<tr><td colspan="7" class="muted">אין נתונים להצגה.</td></tr>`;
+}
+
+function renderOwnerFocusTable() {
+  const today = getLatestDate(state.rows) || new Date();
+  const rows = buildOwnerFocusStats(state.filtered, today);
+
+  el.ownerFocusTable.innerHTML = rows.length
+    ? rows
+        .map((item) => `
+          <tr>
+            <td><span class="badge">${escapeHtml(item.label)}</span></td>
+            <td>${formatNumber(item.open)}</td>
+            <td>${formatNumber(item.hot)}</td>
+            <td>${formatNumber(item.stale)}</td>
+            <td><span class="score ${item.averageScore >= 80 ? "hot" : ""}">${item.averageScore}</span></td>
+            <td>${escapeHtml(item.conclusion)}</td>
+          </tr>`)
+        .join("")
+    : `<tr><td colspan="6" class="muted">אין מספיק נתונים לבניית תמונת עומס צוותית.</td></tr>`;
 }
 
 function renderKeywordCloud() {
@@ -766,7 +916,23 @@ function renderDataQualityCards() {
         <span>${escapeHtml(label)}</span>
         <strong>${escapeHtml(value)}</strong>
       </article>`)
-    .join("");
+        .join("");
+}
+
+function renderAgingBuckets() {
+  const today = getLatestDate(state.rows) || new Date();
+  const buckets = getAgingBucketStats(state.filtered, today);
+
+  el.agingBuckets.innerHTML = buckets.length
+    ? buckets
+        .map((item) => `
+          <article class="aging-card ${item.daysFrom >= 4 ? "warn" : "ok"}">
+            <span>${escapeHtml(item.label)}</span>
+            <strong>${formatNumber(item.total)}</strong>
+            <small>${escapeHtml(item.detail)}</small>
+          </article>`)
+        .join("")
+    : `<article class="aging-card"><span>אין נתונים</span><strong>0</strong><small>אין תאריכים תקינים לחישוב גיל לידים.</small></article>`;
 }
 
 function renderPotentialQualityTable() {
@@ -878,6 +1044,64 @@ function buildGroupStats(rows, column) {
       score: Math.max(0, Math.min(100, Math.round(interestRate * 0.7 + quoteRate * 0.4 - irrelevantRate * 0.35))),
     };
   });
+}
+
+function buildSourceRecommendations(rows) {
+  return buildGroupStats(rows, columns.source)
+    .filter((group) => group.total >= 3)
+    .sort((a, b) => b.total - a.total)
+    .map((group) => {
+      let highlight = `יחס עניין ${group.interestRate}% והצעות ${group.quoteRate}%.`;
+      let recommendation = "להמשיך להזרים נפח ולבדוק אם אפשר להגדיל תקציב או חשיפה.";
+
+      if (group.irrelevantRate >= 45) {
+        highlight = `אחוז לא רלוונטיים גבוה (${group.irrelevantRate}%).`;
+        recommendation = "לחדד קהל יעד, טפסים וסינון ראשוני כדי להפחית רעש.";
+      } else if (group.quoteRate <= 8 && group.interestRate >= 30) {
+        highlight = `יש עניין, אבל מעט הצעות מחיר (${group.quoteRate}%).`;
+        recommendation = "לבדוק האם הלידים נעצרים לפני שלב הצעת המחיר ולחזק המשך טיפול.";
+      } else if (group.score >= 55) {
+        highlight = `המקור שומר על איכות יציבה עם ציון ${group.score}.`;
+        recommendation = "להגדיל השקעה בזהירות ולשכפל מסרים שעובדים.";
+      }
+
+      return {
+        ...group,
+        highlight,
+        recommendation,
+      };
+    });
+}
+
+function buildOwnerFocusStats(rows, today) {
+  return buildGroupStats(rows, columns.owner)
+    .filter((group) => group.total >= 2)
+    .map((group) => {
+      const ownerRows = rows.filter((row) => normalize(row[columns.owner]) === group.label);
+      const open = ownerRows.filter(isOpenLead).length;
+      const hot = ownerRows.filter((row) => calculateLeadScore(row).score >= 75).length;
+      const stale = ownerRows.filter((row) => row._createdDate && isOpenLead(row) && daysBetween(row._createdDate, today) >= 3).length;
+      const averageScore = getAverageLeadScore(ownerRows);
+
+      let conclusion = "איזון סביר בין עומס לאיכות.";
+      if (stale >= 3) {
+        conclusion = "יש הצטברות לידים תקועים, כדאי לפרוק עומס או להדק מעקב.";
+      } else if (hot >= 3) {
+        conclusion = "מחזיק כמה לידים חמים, כדאי לשמור לו חלון טיפול ממוקד.";
+      } else if (open >= Math.max(6, hot + 4)) {
+        conclusion = "עומס פתוח יחסית גבוה לעומת ההתקדמות, שווה לבדוק קצב טיפול.";
+      }
+
+      return {
+        label: group.label,
+        open,
+        hot,
+        stale,
+        averageScore,
+        conclusion,
+      };
+    })
+    .sort((a, b) => b.stale - a.stale || b.hot - a.hot || b.open - a.open);
 }
 
 function getDuplicatePhones(rows) {
@@ -1132,6 +1356,61 @@ function getDataQualityStats(rows) {
   return stats;
 }
 
+function getAverageLeadScore(rows) {
+  if (!rows.length) return 0;
+  const total = rows.reduce((sum, row) => sum + calculateLeadScore(row).score, 0);
+  return Math.round(total / rows.length);
+}
+
+function getAgingBucketStats(rows, today) {
+  const buckets = [
+    { label: "0-1 ימים", daysFrom: 0, daysTo: 1, total: 0, open: 0, interested: 0 },
+    { label: "2-3 ימים", daysFrom: 2, daysTo: 3, total: 0, open: 0, interested: 0 },
+    { label: "4-7 ימים", daysFrom: 4, daysTo: 7, total: 0, open: 0, interested: 0 },
+    { label: "8+ ימים", daysFrom: 8, daysTo: Infinity, total: 0, open: 0, interested: 0 },
+  ];
+
+  rows.forEach((row) => {
+    if (!row._createdDate) return;
+    const age = daysBetween(row._createdDate, today);
+    const bucket = buckets.find((item) => age >= item.daysFrom && age <= item.daysTo);
+    if (!bucket) return;
+    bucket.total += 1;
+    bucket.open += isOpenLead(row) ? 1 : 0;
+    bucket.interested += isInterested(row) ? 1 : 0;
+  });
+
+  return buckets.map((bucket) => ({
+    ...bucket,
+    detail: bucket.total
+      ? `${formatNumber(bucket.open)} פתוחים, ${formatNumber(bucket.interested)} מעוניינים / בטיפול`
+      : "אין לידים בקבוצת הזמן הזו",
+  }));
+}
+
+function getMainRiskText() {
+  const total = state.filtered.length;
+  if (!total) return "אין נתונים מספקים לזיהוי סיכון מרכזי.";
+
+  const qualityStats = getDataQualityStats(state.filtered);
+  const closeReasons = Object.entries(countCloseReasonsForIrrelevant(state.filtered)).sort((a, b) => b[1] - a[1]);
+  const stale = getPriorityLeads(state.filtered).filter((item) => item.age >= 3).length;
+
+  if (stale >= 6) {
+    return `${formatNumber(stale)} לידים דחופים כבר בני 3 ימים ומעלה.`;
+  }
+
+  if (qualityStats.invalidPhones >= 6) {
+    return `${formatNumber(qualityStats.invalidPhones)} טלפונים לא תקינים פוגעים ביכולת לחזור ללידים.`;
+  }
+
+  if (closeReasons[0]) {
+    return `${closeReasons[0][0]} היא סיבת הסגירה המובילה בקרב לא רלוונטיים.`;
+  }
+
+  return "לא זוהה כרגע סיכון חריג אחד שמוביל על השאר.";
+}
+
 function daysBetween(start, end) {
   const ms = new Date(end.getFullYear(), end.getMonth(), end.getDate()) -
     new Date(start.getFullYear(), start.getMonth(), start.getDate());
@@ -1326,6 +1605,7 @@ function exportSummary() {
   }
 
   const rows = [["פרמטר", "ערך", "כמות"]];
+  const latest = getLatestDate(state.rows) || new Date();
   [
     ["סטטוס ליד", countBy(state.filtered, columns.leadStatus)],
     ["סטטוס מכירה", countBy(state.filtered, columns.saleStatus)],
@@ -1376,12 +1656,21 @@ function exportSummary() {
     .forEach((group) => rows.push([group.label, group.total, group.interested, group.irrelevant, group.quotes, group.score]));
 
   rows.push([]);
+  rows.push(["המלצות לפי מקור", "נפח", "ציון איכות", "מה בולט", "המלצה"]);
+  buildSourceRecommendations(state.filtered)
+    .forEach((group) => rows.push([group.label, group.total, group.score, group.highlight, group.recommendation]));
+
+  rows.push([]);
+  rows.push(["פוקוס מנהלי לקוח", "פתוחים", "חמים", "תקועים", "ציון ממוצע", "מסקנה"]);
+  buildOwnerFocusStats(state.filtered, latest)
+    .forEach((item) => rows.push([item.label, item.open, item.hot, item.stale, item.averageScore, item.conclusion]));
+
+  rows.push([]);
   rows.push(["אותות מהערות", "כמות", "המלצה"]);
   extractConversationSignals(state.filtered).forEach((item) => rows.push([item.label, item.count, item.recommendation]));
 
   rows.push([]);
   rows.push(["לידים תקועים", "עסק", "תאריך", "סטטוס", "גיל בימים"]);
-  const latest = getLatestDate(state.rows) || new Date();
   state.filtered
     .filter((row) => row._createdDate && isOpenLead(row))
     .map((row) => ({ row, age: daysBetween(row._createdDate, latest) }))
@@ -1437,6 +1726,11 @@ function exportSummary() {
   rows.push(["סטטוס חסר", qualityStats.missingStatus]);
   rows.push(["תאריך לא תקין", qualityStats.invalidDates]);
   rows.push(["כפילויות עודפות", qualityStats.duplicateExtras]);
+
+  rows.push([]);
+  rows.push(["גיל לידים", "סה״כ", "פתוחים", "מעוניינים"]);
+  getAgingBucketStats(state.filtered, latest)
+    .forEach((item) => rows.push([item.label, item.total, item.open, item.interested]));
 
   rows.push([]);
   rows.push(["איכות לפי פוטנציאל", "סה״כ", "מעוניינים", "לא רלוונטיים", "תהליך אחר", "הצעות", "ציון ממוצע"]);
