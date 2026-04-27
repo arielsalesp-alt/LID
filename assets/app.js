@@ -1,7 +1,6 @@
 ﻿const columns = {
-  phone: "טלפון ראשי",
+  customerCode: "קוד לקוח",
   created: "נוצר בתאריך",
-  business: "שם העסק",
   owner: "מנהל לקוח",
   customerStatus: "סטטוס לקוח",
   source: "מקור הגעה",
@@ -387,14 +386,13 @@ function renderInsights() {
   const ownerStats = buildGroupStats(state.filtered, columns.owner).filter((group) => group.total >= 2);
   const closeReasons = Object.entries(countCloseReasonsForIrrelevant(state.filtered)).sort((a, b) => b[1] - a[1]);
   const otherProcessCount = state.filtered.filter(isOtherProcessWithoutCloseReason).length;
-  const duplicateCount = getDuplicatePhones(state.filtered).reduce((sum, item) => sum + item.count - 1, 0);
+  const duplicateCount = getDuplicateCustomerCodes(state.filtered).reduce((sum, item) => sum + item.count - 1, 0);
   const bestHour = getBestHour(state.filtered);
   const staleCount = state.filtered.filter((row) => row._createdDate && isOpenLead(row) && daysBetween(row._createdDate, getLatestDate(state.rows) || new Date()) >= 3).length;
-  const topKeyword = extractKeywords(state.filtered)[0];
   const insights = [];
 
   if (!total) {
-    el.insightsList.innerHTML = `<article class="insight-card">אין מספיק נתונים בסינון הנוכחי. נסה להרחיב את טווח התאריכים או לנקות חלק מהסינונים.</article>`;
+    el.insightsList.innerHTML = `<article class="insight-card">??? ????? ?????? ?????? ??????. ??? ?????? ?? ???? ???????? ?? ????? ??? ?????????.</article>`;
     return;
   }
 
@@ -403,76 +401,17 @@ function renderInsights() {
   const bestOwner = ownerStats.sort((a, b) => b.interestRate - a.interestRate || b.total - a.total)[0];
   const topCloseReason = closeReasons[0];
 
-  if (bestSource) {
-    insights.push([
-      "המקור החזק ביותר",
-      `${bestSource.label} מוביל בציון איכות ${bestSource.score}/100 עם ${percent(bestSource.interested, bestSource.total)} יחס עניין.`,
-    ]);
-  }
-
-  if (weakestSource && weakestSource.label !== bestSource?.label) {
-    insights.push([
-      "מקור שדורש בדיקה",
-      `${weakestSource.label} מציג ציון איכות ${weakestSource.score}/100. כדאי לבדוק מסרים, קהל יעד או סינון מוקדם.`,
-    ]);
-  }
-
-  if (bestOwner) {
-    insights.push([
-      "ביצועי נציגים",
-      `${bestOwner.label} מציג/ה יחס עניין של ${percent(bestOwner.interested, bestOwner.total)} מתוך ${formatNumber(bestOwner.total)} לידים.`,
-    ]);
-  }
-
-  if (topCloseReason) {
-    insights.push([
-      "חסם מרכזי",
-      `בקרב לידים לא רלוונטיים, סיבת הסגירה הנפוצה היא "${topCloseReason[0]}" עם ${formatNumber(topCloseReason[1])} מופעים.`,
-    ]);
-  }
-
-  if (otherProcessCount) {
-    insights.push([
-      "תהליך אחר",
-      `${formatNumber(otherProcessCount)} לידים ללא סיבת סגירה אינם נספרים כחסם. לפי ההגדרה שלך הם עברו תהליך אחר, ולכן נותחו בנפרד.`,
-    ]);
-  }
-
-  if (duplicateCount) {
-    insights.push([
-      "איכות רשומות",
-      `נמצאו ${formatNumber(duplicateCount)} רשומות כפולות לפי טלפון. כדאי לאחד כפילויות לפני קבלת החלטות.`,
-    ]);
-  }
-
-  if (bestHour) {
-    insights.push([
-      "חלון זמן חזק",
-      `השעה הפעילה ביותר היא ${String(bestHour.hour).padStart(2, "0")}:00 עם ${formatNumber(bestHour.count)} לידים. זה רמז טוב לתזמון תגבור או קמפיינים.`,
-    ]);
-  }
-
-  if (staleCount) {
-    insights.push([
-      "לידים תקועים",
-      `${formatNumber(staleCount)} לידים פתוחים נמצאים מעל 3 ימים ללא סגירה ברורה. כדאי לתעדף אותם לרשימת חזרה.`,
-    ]);
-  }
-
-  if (topKeyword) {
-    insights.push([
-      "אות חוזר מההערות",
-      `המילה "${topKeyword.word}" חוזרת ${formatNumber(topKeyword.count)} פעמים בהערות. שווה לבדוק אם היא מסמנת התנגדות או צורך חוזר.`,
-    ]);
-  }
-
-  insights.push([
-    "תמונה כוללת",
-    `${percent(state.filtered.filter(isInterested).length, total)} מהלידים נמצאים בעניין או טיפול, ו-${percent(state.filtered.filter(isIrrelevant).length, total)} לא רלוונטיים.`,
-  ]);
+  if (bestSource) insights.push(["????? ???? ?????", `${bestSource.label} ????? ????? ????? ${bestSource.score}/100 ?? ${percent(bestSource.interested, bestSource.total)} ??? ?????.`]);
+  if (weakestSource && weakestSource.label !== bestSource?.label) insights.push(["???? ????? ?????", `${weakestSource.label} ???? ???? ????? ${weakestSource.score}/100. ???? ????? ?????, ??? ??? ?? ????? ?????.`]);
+  if (bestOwner) insights.push(["?????? ??????", `${bestOwner.label} ????/? ??? ????? ?? ${percent(bestOwner.interested, bestOwner.total)} ???? ${formatNumber(bestOwner.total)} ?????.`]);
+  if (topCloseReason) insights.push(["??? ?????", `???? ????? ?? ?????????, ${topCloseReason[0]} ????? ${formatNumber(topCloseReason[1])} ?????.`]);
+  if (bestHour) insights.push(["???? ??? ???", `???? ${String(bestHour.hour).padStart(2, "0")}:00 ????? ?? ${formatNumber(bestHour.count)} ?????.`]);
+  if (duplicateCount) insights.push(["????? ??????", `????? ${formatNumber(duplicateCount)} ?????? ?????? ??? ??? ????. ???? ???? ???????? ???? ???? ??????.`]);
+  if (otherProcessCount) insights.push(["????? ???", `${formatNumber(otherProcessCount)} ????? ??? ???? ????? ??????? ?????? ??? ??? ????.`]);
+  if (staleCount) insights.push(["????? ??????", `${formatNumber(staleCount)} ????? ?????? ??? ??? 3 ???? ????? ??????? ?????.`]);
 
   el.insightsList.innerHTML = insights
-    .map(([title, text]) => `<article class="insight-card"><strong>${escapeHtml(title)}</strong><span>${escapeHtml(text)}</span></article>`)
+    .map(([title, body]) => `<article class="insight-card"><strong>${escapeHtml(title)}</strong><span>${escapeHtml(body)}</span></article>`)
     .join("");
 }
 
@@ -546,17 +485,17 @@ function renderDailyTrend() {
 }
 
 function renderDuplicateTable() {
-  const duplicates = getDuplicatePhones(state.filtered).slice(0, 12);
+  const duplicates = getDuplicateCustomerCodes(state.filtered).slice(0, 12);
   el.duplicateTable.innerHTML = duplicates.length
     ? duplicates
         .map((item) => `
           <tr>
-            <td>${escapeHtml(item.phone)}</td>
+            <td>${escapeHtml(item.code)}</td>
             <td>${formatNumber(item.count)}</td>
-            <td>${escapeHtml(item.businesses.join(", "))}</td>
+            <td>${escapeHtml(item.owners.join(", "))}</td>
           </tr>`)
         .join("")
-    : `<tr><td colspan="3" class="muted">לא נמצאו טלפונים כפולים בסינון הנוכחי.</td></tr>`;
+    : `<tr><td colspan="3" class="muted">לא נמצאו קודי לקוח כפולים בסינון הנוכחי.</td></tr>`;
 }
 
 function renderSourceQualityTable() {
@@ -665,12 +604,12 @@ function renderSourceStatusMatrix() {
 }
 
 function renderOwnerPerformanceTable() {
-  const duplicatePhones = new Set(getDuplicatePhones(state.filtered).map((item) => item.phone));
+  const duplicateCustomerCodes = new Set(getDuplicateCustomerCodes(state.filtered).map((item) => item.code));
   const stats = buildGroupStats(state.filtered, columns.owner)
     .map((group) => {
       const duplicateCount = state.filtered.filter((row) => {
-        const phone = clean(row[columns.phone]).replace(/\D/g, "");
-        return normalize(row[columns.owner]) === group.label && duplicatePhones.has(phone);
+        const code = clean(row[columns.customerCode]).trim();
+        return normalize(row[columns.owner]) === group.label && duplicateCustomerCodes.has(code);
       }).length;
       return { ...group, duplicateCount, score: Math.max(0, group.score - Math.min(20, duplicateCount * 2)) };
     })
@@ -689,7 +628,7 @@ function renderOwnerPerformanceTable() {
             <td><span class="score">${group.score}</span></td>
           </tr>`)
         .join("")
-    : `<tr><td colspan="7" class="muted">אין נתונים להצגה.</td></tr>`;
+    : `<tr><td colspan="7" class="muted">??? ?????? ?????.</td></tr>`;
 }
 
 function renderOwnerFocusTable() {
@@ -747,7 +686,7 @@ function renderStaleLeadsTable() {
         .map(({ row, age }) => `
           <tr>
             <td>${escapeHtml(row[columns.created] || "-")}</td>
-            <td>${escapeHtml(row[columns.business] || "-")}</td>
+            <td>${escapeHtml(row[columns.customerCode] || "-")}</td>
             <td>${escapeHtml(normalize(row[columns.leadStatus]))}</td>
             <td><span class="badge warn">${formatNumber(age)} ימים</span></td>
           </tr>`)
@@ -758,29 +697,28 @@ function renderStaleLeadsTable() {
 function renderExecutiveReport() {
   const total = state.filtered.length;
   if (!total) {
-    el.executiveReport.innerHTML = `<article class="report-card">אין מספיק נתונים לבניית דוח מנהלים.</article>`;
+    el.executiveReport.innerHTML = `<article class="report-card">??? ????? ?????? ?????? ??? ??????.</article>`;
     return;
   }
 
   const scores = state.filtered.map((row) => calculateLeadScore(row).score);
   const averageScore = Math.round(scores.reduce((sum, score) => sum + score, 0) / scores.length);
   const hotLeads = state.filtered.filter((row) => calculateLeadScore(row).score >= 75).length;
-  const irrelevant = state.filtered.filter(isIrrelevant).length;
   const stale = getPriorityLeads(state.filtered).filter((item) => item.age >= 3).length;
   const sourceStats = buildGroupStats(state.filtered, columns.source).filter((group) => group.total >= 2);
   const bestSource = [...sourceStats].sort((a, b) => b.score - a.score || b.total - a.total)[0];
   const weakSource = [...sourceStats].sort((a, b) => a.score - b.score || b.total - a.total)[0];
-  const invalidPhones = state.filtered.filter((row) => !isValidPhone(row[columns.phone])).length;
+  const invalidCustomerCodes = state.filtered.filter((row) => !isValidCustomerCode(row[columns.customerCode])).length;
   const closeReasons = Object.entries(countCloseReasonsForIrrelevant(state.filtered)).sort((a, b) => b[1] - a[1]);
   const mainBlocker = closeReasons[0];
 
   const cards = [
-    ["בריאות כללית", `ציון איכות ממוצע ${averageScore}/100. יש ${formatNumber(hotLeads)} לידים חמים מתוך ${formatNumber(total)}.`],
-    ["מיקוד מכירה", stale ? `${formatNumber(stale)} לידים פתוחים דורשים חזרה מהירה.` : "אין עומס חריג של לידים פתוחים לפי הסינון הנוכחי."],
-    ["מקור להשקעה", bestSource ? `${bestSource.label} מוביל באיכות עם ציון ${bestSource.score}/100.` : "אין מספיק נתונים להשוואת מקורות."],
-    ["מקור לבדיקה", weakSource && weakSource.label !== bestSource?.label ? `${weakSource.label} חלש יחסית, עם ציון ${weakSource.score}/100.` : "אין מקור חלש מובהק בסינון הנוכחי."],
-    ["חסם מרכזי", mainBlocker ? `${mainBlocker[0]} היא סיבת הסגירה הבולטת ללא רלוונטיים.` : "אין חסם מרכזי מובהק מתוך סיבות הסגירה."],
-    ["איכות נתונים", invalidPhones ? `${formatNumber(invalidPhones)} טלפונים נראים לא תקינים ודורשים בדיקה.` : "לא זוהתה בעיית טלפונים משמעותית."],
+    ["?????? ?????", `???? ????? ????? ${averageScore}/100. ?? ${formatNumber(hotLeads)} ????? ???? ???? ${formatNumber(total)}.`],
+    ["????? ?????", stale ? `${formatNumber(stale)} ????? ?????? ?????? ???? ?????.` : "??? ???? ???? ?? ????? ?????? ??? ?????? ??????."],
+    ["???? ??????", bestSource ? `${bestSource.label} ????? ?????? ?? ???? ${bestSource.score}/100.` : "??? ????? ?????? ??????? ??????."],
+    ["???? ??????", weakSource && weakSource.label !== bestSource?.label ? `${weakSource.label} ??? ?????, ?? ???? ${weakSource.score}/100.` : "??? ???? ??? ????? ?????? ??????."],
+    ["??? ?????", mainBlocker ? `${mainBlocker[0]} ??? ???? ?????? ?????? ??? ?????????.` : "??? ??? ????? ????? ???? ????? ??????."],
+    ["????? ??????", invalidCustomerCodes ? `${formatNumber(invalidCustomerCodes)} ???? ???? ????? ?? ?????? ??????? ?????.` : "?? ????? ????? ???? ???? ????????."],
   ];
 
   el.executiveReport.innerHTML = cards
@@ -911,12 +849,12 @@ function renderGoalTracker() {
 function renderDataQualityCards() {
   const stats = getDataQualityStats(state.filtered);
   const cards = [
-    ["ציון איכות דאטה", `${stats.health}/100`, stats.health >= 85 ? "ok" : "warn"],
-    ["טלפונים לא תקינים", formatNumber(stats.invalidPhones), stats.invalidPhones ? "warn" : "ok"],
-    ["מקור חסר", formatNumber(stats.missingSource), stats.missingSource ? "warn" : "ok"],
-    ["מנהל חסר", formatNumber(stats.missingOwner), stats.missingOwner ? "warn" : "ok"],
-    ["סטטוס חסר", formatNumber(stats.missingStatus), stats.missingStatus ? "warn" : "ok"],
-    ["תאריך לא תקין", formatNumber(stats.invalidDates), stats.invalidDates ? "warn" : "ok"],
+    ["???? ????? ????", `${stats.health}/100`, stats.health >= 85 ? "ok" : "warn"],
+    ["???? ???? ?? ??????", formatNumber(stats.invalidCustomerCodes), stats.invalidCustomerCodes ? "warn" : "ok"],
+    ["???? ???", formatNumber(stats.missingSource), stats.missingSource ? "warn" : "ok"],
+    ["???? ???", formatNumber(stats.missingOwner), stats.missingOwner ? "warn" : "ok"],
+    ["????? ???", formatNumber(stats.missingStatus), stats.missingStatus ? "warn" : "ok"],
+    ["????? ?? ????", formatNumber(stats.invalidDates), stats.invalidDates ? "warn" : "ok"],
   ];
 
   el.dataQualityCards.innerHTML = cards
@@ -984,14 +922,14 @@ function renderPriorityLeadsTable() {
             <td><span class="score ${score >= 80 ? "hot" : ""}">${score}</span></td>
             <td>${escapeHtml(action)}</td>
             <td>${escapeHtml(row[columns.created] || "-")}</td>
-            <td>${escapeHtml(row[columns.business] || "-")}</td>
+            <td>${escapeHtml(row[columns.customerCode] || "-")}</td>
             <td>${escapeHtml(normalize(row[columns.owner]))}</td>
             <td>${escapeHtml(normalize(row[columns.source]))}</td>
             <td>${escapeHtml(normalize(row[columns.leadStatus]))}</td>
             <td>${escapeHtml(reasons.join(", "))}</td>
           </tr>`)
         .join("")
-    : `<tr><td colspan="8" class="muted">אין לידים פתוחים או חמים לטיפול מיידי בסינון הנוכחי.</td></tr>`;
+    : `<tr><td colspan="8" class="muted">??? ????? ?????? ?? ???? ?????? ????? ?????? ??????.</td></tr>`;
 }
 
 function renderGroupTable() {
@@ -1113,23 +1051,23 @@ function buildOwnerFocusStats(rows, today) {
     .sort((a, b) => b.stale - a.stale || b.hot - a.hot || b.open - a.open);
 }
 
-function getDuplicatePhones(rows) {
-  const phones = new Map();
+function getDuplicateCustomerCodes(rows) {
+  const codes = new Map();
   rows.forEach((row) => {
-    const phone = clean(row[columns.phone]).replace(/\D/g, "");
-    if (!phone) return;
-    if (!phones.has(phone)) {
-      phones.set(phone, { phone, count: 0, businesses: new Set() });
+    const code = clean(row[columns.customerCode]).trim();
+    if (!code) return;
+    if (!codes.has(code)) {
+      codes.set(code, { code, count: 0, owners: new Set() });
     }
-    const item = phones.get(phone);
+    const item = codes.get(code);
     item.count += 1;
-    item.businesses.add(normalize(row[columns.business]));
+    item.owners.add(normalize(row[columns.owner]));
   });
 
-  return [...phones.values()]
+  return [...codes.values()]
     .filter((item) => item.count > 1)
-    .map((item) => ({ ...item, businesses: [...item.businesses].slice(0, 4) }))
-    .sort((a, b) => b.count - a.count || a.phone.localeCompare(b.phone));
+    .map((item) => ({ ...item, owners: [...item.owners].slice(0, 4) }))
+    .sort((a, b) => b.count - a.count || a.code.localeCompare(b.code, "he"));
 }
 
 function topKeys(counts, limit) {
@@ -1168,44 +1106,44 @@ function extractKeywords(rows) {
 function extractConversationSignals(rows) {
   const definitions = [
     {
-      label: "אין מענה / לא עונה",
-      pattern: /אין מענה|לא עונה|לא ענו|ניסיון נוסף/,
-      recommendation: "לתעדף לניסיון חזרה נוסף בשעות פעילות חזקות.",
+      label: "??? ???? / ?? ????",
+      pattern: /??? ????|?? ????|?? ???|?????? ????/,
+      recommendation: "????? ??????? ???? ???? ????? ?????? ?????.",
     },
     {
-      label: "ביקש הצעת מחיר",
-      pattern: /הצעת מחיר|הצעה|מחיר|הצעת/,
-      recommendation: "לוודא שנשלחה הצעה ולעשות follow-up קצר.",
+      label: "???? ???? ????",
+      pattern: /???? ????|????|????|????/,
+      recommendation: "????? ?????? ???? ?????? follow-up ???.",
     },
     {
-      label: "נקבעה פגישה / הדגמה",
-      pattern: /פגישה|הדגמה|דמו|שיחה עם מנהל/,
-      recommendation: "להכין סיכום צורך לפני הפגישה ולסגור שלב הבא.",
+      label: "????? ????? / ?????",
+      pattern: /?????|?????|???|???? ?? ????/,
+      recommendation: "????? ????? ???? ???? ?????? ?????? ??? ???.",
     },
     {
-      label: "ממתין לאישור",
-      pattern: /ממתין|ממתינה|אישור|שותף|מנהל/,
-      recommendation: "לשלוח תזכורת עם ערך ברור וסיבה להתקדם.",
+      label: "????? ??????",
+      pattern: /?????|??????|?????|????|????/,
+      recommendation: "????? ?????? ?? ??? ???? ????? ??????.",
     },
     {
-      label: "בעיית תקציב",
-      pattern: /תקציב|יקר|עלות|מחיר גבוה|לא מתאים תקציבית/,
-      recommendation: "להציע מסלול כניסה או להסביר ROI קצר.",
+      label: "????? ?????",
+      pattern: /?????|???|????|???? ????|?? ????? ???????/,
+      recommendation: "????? ????? ????? ?? ?????? ROI ???.",
     },
     {
-      label: "טלפון שגוי",
-      pattern: /טלפון שגוי|מספר לא|לא מחובר/,
-      recommendation: "לסמן לניקוי דאטה ולא להשאיר ברשימת follow-up.",
+      label: "??? ???? ????",
+      pattern: /??? ???? ????|???? ??|?? ?????/,
+      recommendation: "???? ?????? ???? ??? ?????? ?????? follow-up.",
     },
     {
-      label: "מחפש עבודה",
-      pattern: /מחפש עבודה|משרה|קורות חיים/,
-      recommendation: "לסווג כלא רלוונטי ולהחריג ממדדי מכירה.",
+      label: "???? ?????",
+      pattern: /???? ?????|????|????? ????/,
+      recommendation: "????? ??? ??????? ??????? ????? ?????.",
     },
     {
-      label: "לקוח חם",
-      pattern: /לקוח חם|מעוניין|רוצה|ביקש שיחזרו|חזרה עד סוף היום/,
-      recommendation: "לתעדף לשיחה מהירה באותו יום.",
+      label: "???? ??",
+      pattern: /???? ??|???????|????|???? ??????|???? ?? ??? ????/,
+      recommendation: "????? ????? ????? ????? ???.",
     },
   ];
 
@@ -1247,57 +1185,57 @@ function calculateLeadScore(row) {
 
   if (isInterested(row)) {
     score += 24;
-    reasons.push("עניין/טיפול");
+    reasons.push("?????/?????");
   }
 
   if (hasQuote(row)) {
     score += 14;
-    reasons.push("יש הצעת מחיר");
+    reasons.push("?? ???? ????");
   }
 
   const potential = normalize(row[columns.potential]);
-  if (/basic|premium|גבוה|חם/i.test(potential)) {
+  if (/basic|premium|????|??/i.test(potential)) {
     score += 10;
-    reasons.push("פוטנציאל חיובי");
-  } else if (/לא רלוונטי/.test(potential)) {
+    reasons.push("???????? ?????");
+  } else if (/?? ???????/.test(potential)) {
     score -= 28;
-    reasons.push("פוטנציאל לא רלוונטי");
-  } else if (/לא ידוע/.test(potential)) {
+    reasons.push("???????? ?? ???????");
+  } else if (/?? ????/.test(potential)) {
     score -= 4;
   }
 
   if (isIrrelevant(row)) {
     score -= 38;
-    reasons.push("לא רלוונטי");
+    reasons.push("?? ???????");
   }
 
   const text = `${normalize(row[columns.leadStatus])} ${normalize(row[columns.saleStatus])} ${normalize(row[columns.notes])}`;
-  if (/פגישה|מעוניין|הצעה|מייל|שלחתי|ממתין|אתר/.test(text)) {
+  if (/?????|???????|????|????|?????|?????|???/.test(text)) {
     score += 8;
-    reasons.push("אות חיובי בהערות");
+    reasons.push("??? ????? ??????");
   }
-  if (/אין מענה|נעלם|טלפון שגוי|מחפש עבודה|לא עונה/.test(text)) {
+  if (/??? ????|????|??? ???? ????|???? ?????|?? ????/.test(text)) {
     score -= 12;
-    reasons.push("סיכון בהערות");
+    reasons.push("????? ??????");
   }
 
-  if (!isValidPhone(row[columns.phone])) {
+  if (!isValidCustomerCode(row[columns.customerCode])) {
     score -= 18;
-    reasons.push("טלפון לבדיקה");
+    reasons.push("??? ???? ??????");
   }
 
   if (!row._createdDate) {
     score -= 6;
-    reasons.push("תאריך חסר");
+    reasons.push("????? ???");
   }
 
-  if (normalize(row[columns.source]) === "לא צוין") {
+  if (normalize(row[columns.source]) === "?? ????") {
     score -= 5;
   }
 
   return {
     score: Math.max(0, Math.min(100, Math.round(score))),
-    reasons: reasons.length ? reasons : ["ליד רגיל"],
+    reasons: reasons.length ? reasons : ["??? ????"],
   };
 }
 
@@ -1330,9 +1268,9 @@ function getRecommendedAction(row, age, score) {
   return "להמשיך טיפול";
 }
 
-function isValidPhone(value) {
-  const digits = clean(value).replace(/\D/g, "");
-  return digits.length >= 9 && digits.length <= 12;
+function isValidCustomerCode(value) {
+  const cleaned = clean(value).replace(/\s+/g, "");
+  return cleaned.length >= 3;
 }
 
 function isMissingValue(value) {
@@ -1342,16 +1280,16 @@ function isMissingValue(value) {
 
 function getDataQualityStats(rows) {
   const total = Math.max(1, rows.length);
-  const duplicateExtras = getDuplicatePhones(rows).reduce((sum, item) => sum + item.count - 1, 0);
+  const duplicateExtras = getDuplicateCustomerCodes(rows).reduce((sum, item) => sum + item.count - 1, 0);
   const stats = rows.reduce((acc, row) => {
-    acc.invalidPhones += isValidPhone(row[columns.phone]) ? 0 : 1;
+    acc.invalidCustomerCodes += isValidCustomerCode(row[columns.customerCode]) ? 0 : 1;
     acc.missingSource += isMissingValue(row[columns.source]) ? 1 : 0;
     acc.missingOwner += isMissingValue(row[columns.owner]) ? 1 : 0;
     acc.missingStatus += isMissingValue(row[columns.leadStatus]) ? 1 : 0;
     acc.invalidDates += row._createdDate ? 0 : 1;
     return acc;
   }, {
-    invalidPhones: 0,
+    invalidCustomerCodes: 0,
     missingSource: 0,
     missingOwner: 0,
     missingStatus: 0,
@@ -1359,8 +1297,7 @@ function getDataQualityStats(rows) {
   });
 
   stats.duplicateExtras = duplicateExtras;
-  stats.totalIssues = stats.invalidPhones + stats.missingSource + stats.missingOwner +
-    stats.missingStatus + stats.invalidDates + duplicateExtras;
+  stats.totalIssues = stats.invalidCustomerCodes + stats.missingSource + stats.missingOwner + stats.missingStatus + stats.invalidDates + duplicateExtras;
   stats.health = Math.max(0, Math.min(100, 100 - Math.round((stats.totalIssues / (total * 2)) * 100)));
   return stats;
 }
@@ -1399,25 +1336,25 @@ function getAgingBucketStats(rows, today) {
 
 function getMainRiskText() {
   const total = state.filtered.length;
-  if (!total) return "אין נתונים מספקים לזיהוי סיכון מרכזי.";
+  if (!total) return "??? ?????? ?????? ?????? ????? ?????.";
 
   const qualityStats = getDataQualityStats(state.filtered);
   const closeReasons = Object.entries(countCloseReasonsForIrrelevant(state.filtered)).sort((a, b) => b[1] - a[1]);
   const stale = getPriorityLeads(state.filtered).filter((item) => item.age >= 3).length;
 
   if (stale >= 6) {
-    return `${formatNumber(stale)} לידים דחופים כבר בני 3 ימים ומעלה.`;
+    return `${formatNumber(stale)} ????? ?????? ??? ??? 3 ???? ?????.`;
   }
 
-  if (qualityStats.invalidPhones >= 6) {
-    return `${formatNumber(qualityStats.invalidPhones)} טלפונים לא תקינים פוגעים ביכולת לחזור ללידים.`;
+  if (qualityStats.invalidCustomerCodes >= 6) {
+    return `${formatNumber(qualityStats.invalidCustomerCodes)} ???? ???? ?? ?????? ?????? ?????? ?????.`;
   }
 
   if (closeReasons[0]) {
-    return `${closeReasons[0][0]} היא סיבת הסגירה המובילה בקרב לא רלוונטיים.`;
+    return `${closeReasons[0][0]} ??? ???? ?????? ??????? ???? ?? ?????????.`;
   }
 
-  return "לא זוהה כרגע סיכון חריג אחד שמוביל על השאר.";
+  return "?? ???? ???? ????? ???? ??? ?????? ?? ????.";
 }
 
 function daysBetween(start, end) {
@@ -1428,8 +1365,8 @@ function daysBetween(start, end) {
 
 function renderLeadsTable() {
   const visibleHeaders = [
+    columns.customerCode,
     columns.created,
-    columns.business,
     columns.owner,
     columns.source,
     columns.potential,
@@ -1439,7 +1376,7 @@ function renderLeadsTable() {
     columns.notes,
   ].filter((header) => state.headers.includes(header));
 
-  const head = `<thead><tr><th>ציון איכות</th>${visibleHeaders.map((header) => `<th>${escapeHtml(header)}</th>`).join("")}</tr></thead>`;
+  const head = `<thead><tr><th>???? ?????</th>${visibleHeaders.map((header) => `<th>${escapeHtml(header)}</th>`).join("")}</tr></thead>`;
   const body = state.filtered
     .slice(0, 120)
     .map((row) => {
@@ -1560,7 +1497,7 @@ function isInterested(row) {
 }
 
 function isIrrelevant(row) {
-  return /לא רלוונטי|טלפון שגוי|מחפש עבודה/.test(
+  return /?? ???????|??? ???? ????|???? ?????/.test(
     `${normalize(row[columns.leadStatus])} ${normalize(row[columns.closeReason])} ${normalize(row[columns.potential])}`
   );
 }
@@ -1609,140 +1546,113 @@ function percent(value, total) {
 
 function exportSummary() {
   if (!state.filtered.length) {
-    alert("אין נתונים לייצוא.");
+    alert("??? ?????? ??????.");
     return;
   }
 
-  const rows = [["פרמטר", "ערך", "כמות"]];
+  const rows = [["?????", "???", "????"]];
   const latest = getLatestDate(state.rows) || new Date();
   [
-    ["סטטוס ליד", countBy(state.filtered, columns.leadStatus)],
-    ["סטטוס מכירה", countBy(state.filtered, columns.saleStatus)],
-    ["מקור הגעה", countBy(state.filtered, columns.source)],
-    ["מנהל לקוח", countBy(state.filtered, columns.owner)],
-    ["פוטנציאל לקוח", countBy(state.filtered, columns.potential)],
-    ["סיבת סגירה ללא רלוונטיים", countCloseReasonsForIrrelevant(state.filtered)],
+    ["????? ???", countBy(state.filtered, columns.leadStatus)],
+    ["????? ?????", countBy(state.filtered, columns.saleStatus)],
+    ["???? ????", countBy(state.filtered, columns.source)],
+    ["???? ????", countBy(state.filtered, columns.owner)],
+    ["???????? ????", countBy(state.filtered, columns.potential)],
+    ["???? ????? ??? ?????????", countCloseReasonsForIrrelevant(state.filtered)],
   ].forEach(([label, counts]) => {
     Object.entries(counts)
       .sort((a, b) => b[1] - a[1])
       .forEach(([value, count]) => rows.push([label, value, count]));
   });
 
-  rows.push(["עברו תהליך אחר", "ללא סיבת סגירה", state.filtered.filter(isOtherProcessWithoutCloseReason).length]);
+  rows.push(["???? ????? ???", "??? ???? ?????", state.filtered.filter(isOtherProcessWithoutCloseReason).length]);
 
   rows.push([]);
-  rows.push(["איכות מקור", "סה״כ", "מעוניינים", "לא רלוונטיים", "הצעות", "יחס עניין", "ציון איכות"]);
+  rows.push(["????? ????", "????", "?????????", "?? ?????????", "?????", "??? ?????", "???? ?????"]);
   buildGroupStats(state.filtered, columns.source)
     .sort((a, b) => b.score - a.score || b.total - a.total)
-    .forEach((group) => {
-      rows.push([group.label, group.total, group.interested, group.irrelevant, group.quotes, `${group.interestRate}%`, group.score]);
-    });
+    .forEach((group) => rows.push([group.label, group.total, group.interested, group.irrelevant, group.quotes, `${group.interestRate}%`, group.score]));
 
   rows.push([]);
-  rows.push(["מגמה יומית", "כמות"]);
+  rows.push(["???? ?????", "????"]);
   Object.entries(countByDate(state.filtered))
     .sort((a, b) => a[0].localeCompare(b[0]))
     .forEach(([date, count]) => rows.push([formatDateLabel(date), count]));
 
   rows.push([]);
-  rows.push(["טלפונים כפולים", "כמות", "עסקים"]);
-  getDuplicatePhones(state.filtered).forEach((item) => {
-    rows.push([item.phone, item.count, item.businesses.join(", ")]);
-  });
+  rows.push(["???? ???? ??????", "????", "????? ????"]);
+  getDuplicateCustomerCodes(state.filtered).forEach((item) => rows.push([item.code, item.count, item.owners.join(", ")]));
 
   rows.push([]);
-  rows.push(["שעה", "כמות לידים"]);
+  rows.push(["???", "???? ?????"]);
   countByHour(state.filtered).forEach((item) => rows.push([`${String(item.hour).padStart(2, "0")}:00`, item.count]));
 
   rows.push([]);
-  rows.push(["יום בשבוע", "כמות", "מעוניינים"]);
+  rows.push(["??? ?????", "????", "?????????"]);
   countByWeekday(state.filtered).forEach((item) => rows.push([item.name, item.value, item.interested]));
 
   rows.push([]);
-  rows.push(["מנהל לקוח", "סה״כ", "מעוניינים", "לא רלוונטיים", "הצעות", "ציון"]);
+  rows.push(["???? ????", "????", "?????????", "?? ?????????", "?????", "????"]);
   buildGroupStats(state.filtered, columns.owner)
     .sort((a, b) => b.score - a.score || b.total - a.total)
     .forEach((group) => rows.push([group.label, group.total, group.interested, group.irrelevant, group.quotes, group.score]));
 
   rows.push([]);
-  rows.push(["המלצות לפי מקור", "נפח", "ציון איכות", "מה בולט", "המלצה"]);
-  buildSourceRecommendations(state.filtered)
-    .forEach((group) => rows.push([group.label, group.total, group.score, group.highlight, group.recommendation]));
+  rows.push(["?????? ??? ????", "???", "???? ?????", "?? ????", "?????"]);
+  buildSourceRecommendations(state.filtered).forEach((group) => rows.push([group.label, group.total, group.score, group.highlight, group.recommendation]));
 
   rows.push([]);
-  rows.push(["פוקוס מנהלי לקוח", "פתוחים", "חמים", "תקועים", "ציון ממוצע", "מסקנה"]);
-  buildOwnerFocusStats(state.filtered, latest)
-    .forEach((item) => rows.push([item.label, item.open, item.hot, item.stale, item.averageScore, item.conclusion]));
+  rows.push(["????? ????? ????", "??????", "????", "??????", "???? ?????", "?????"]);
+  buildOwnerFocusStats(state.filtered, latest).forEach((item) => rows.push([item.label, item.open, item.hot, item.stale, item.averageScore, item.conclusion]));
 
   rows.push([]);
-  rows.push(["אותות מהערות", "כמות", "המלצה"]);
+  rows.push(["????? ??????", "????", "?????"]);
   extractConversationSignals(state.filtered).forEach((item) => rows.push([item.label, item.count, item.recommendation]));
 
   rows.push([]);
-  rows.push(["לידים תקועים", "עסק", "תאריך", "סטטוס", "גיל בימים"]);
-  state.filtered
-    .filter((row) => row._createdDate && isOpenLead(row))
+  rows.push(["????? ??????", "??? ????", "?????", "?????", "??? ?????"]);
+  state.filtered.filter((row) => row._createdDate && isOpenLead(row))
     .map((row) => ({ row, age: daysBetween(row._createdDate, latest) }))
     .filter((item) => item.age >= 3)
     .sort((a, b) => b.age - a.age)
-    .forEach(({ row, age }) => rows.push(["ליד פתוח", row[columns.business], row[columns.created], normalize(row[columns.leadStatus]), age]));
+    .forEach(({ row, age }) => rows.push(["??? ????", row[columns.customerCode], row[columns.created], normalize(row[columns.leadStatus]), age]));
 
   rows.push([]);
-  rows.push(["לידים לטיפול מיידי", "ציון", "פעולה מומלצת", "עסק", "תאריך", "מנהל", "מקור", "סטטוס", "סיבה לדירוג"]);
+  rows.push(["????? ?????? ?????", "????", "????? ??????", "??? ????", "?????", "????", "????", "?????", "???? ??????"]);
   getPriorityLeads(state.filtered).slice(0, 40).forEach(({ row, score, action, reasons }) => {
-    rows.push([
-      "לטיפול",
-      score,
-      action,
-      row[columns.business],
-      row[columns.created],
-      normalize(row[columns.owner]),
-      normalize(row[columns.source]),
-      normalize(row[columns.leadStatus]),
-      reasons.join(", "),
-    ]);
+    rows.push(["??????", score, action, row[columns.customerCode], row[columns.created], normalize(row[columns.owner]), normalize(row[columns.source]), normalize(row[columns.leadStatus]), reasons.join(", ")]);
   });
 
   rows.push([]);
-  rows.push(["ציוני איכות לכל הלידים", "ציון", "עסק", "טלפון", "מנהל", "מקור", "סטטוס", "סיבות"]);
+  rows.push(["????? ????? ??? ??????", "????", "??? ????", "????", "????", "?????", "?????"]);
   state.filtered.forEach((row) => {
     const quality = calculateLeadScore(row);
-    rows.push([
-      "ליד",
-      quality.score,
-      row[columns.business],
-      row[columns.phone],
-      normalize(row[columns.owner]),
-      normalize(row[columns.source]),
-      normalize(row[columns.leadStatus]),
-      quality.reasons.join(", "),
-    ]);
+    rows.push(["???", quality.score, row[columns.customerCode], normalize(row[columns.owner]), normalize(row[columns.source]), normalize(row[columns.leadStatus]), quality.reasons.join(", ")]);
   });
 
   rows.push([]);
-  rows.push(["יעדים מול ביצועים", "ביצוע", "יעד"]);
-  rows.push(["יחס עניין", `${percent(state.filtered.filter(isInterested).length, state.filtered.length)}`, `${Number(el.targetInterest.value || 0)}%`]);
-  rows.push(["הצעות מחיר", `${percent(state.filtered.filter(hasQuote).length, state.filtered.length)}`, `${Number(el.targetQuote.value || 0)}%`]);
-  rows.push(["לא רלוונטיים", `${percent(state.filtered.filter(isIrrelevant).length, state.filtered.length)}`, `${Number(el.targetIrrelevant.value || 0)}%`]);
+  rows.push(["????? ??? ???????", "?????", "???"]);
+  rows.push(["??? ?????", `${percent(state.filtered.filter(isInterested).length, state.filtered.length)}`, `${Number(el.targetInterest.value || 0)}%`]);
+  rows.push(["????? ????", `${percent(state.filtered.filter(hasQuote).length, state.filtered.length)}`, `${Number(el.targetQuote.value || 0)}%`]);
+  rows.push(["?? ?????????", `${percent(state.filtered.filter(isIrrelevant).length, state.filtered.length)}`, `${Number(el.targetIrrelevant.value || 0)}%`]);
 
   rows.push([]);
   const qualityStats = getDataQualityStats(state.filtered);
-  rows.push(["איכות נתונים", "ערך"]);
-  rows.push(["ציון איכות דאטה", qualityStats.health]);
-  rows.push(["טלפונים לא תקינים", qualityStats.invalidPhones]);
-  rows.push(["מקור חסר", qualityStats.missingSource]);
-  rows.push(["מנהל חסר", qualityStats.missingOwner]);
-  rows.push(["סטטוס חסר", qualityStats.missingStatus]);
-  rows.push(["תאריך לא תקין", qualityStats.invalidDates]);
-  rows.push(["כפילויות עודפות", qualityStats.duplicateExtras]);
+  rows.push(["????? ??????", "???"]);
+  rows.push(["???? ????? ????", qualityStats.health]);
+  rows.push(["???? ???? ?? ??????", qualityStats.invalidCustomerCodes]);
+  rows.push(["???? ???", qualityStats.missingSource]);
+  rows.push(["???? ???", qualityStats.missingOwner]);
+  rows.push(["????? ???", qualityStats.missingStatus]);
+  rows.push(["????? ?? ????", qualityStats.invalidDates]);
+  rows.push(["???????? ??????", qualityStats.duplicateExtras]);
 
   rows.push([]);
-  rows.push(["גיל לידים", "סה״כ", "פתוחים", "מעוניינים"]);
-  getAgingBucketStats(state.filtered, latest)
-    .forEach((item) => rows.push([item.label, item.total, item.open, item.interested]));
+  rows.push(["??? ?????", "????", "??????", "?????????"]);
+  getAgingBucketStats(state.filtered, latest).forEach((item) => rows.push([item.label, item.total, item.open, item.interested]));
 
   rows.push([]);
-  rows.push(["איכות לפי פוטנציאל", "סה״כ", "מעוניינים", "לא רלוונטיים", "תהליך אחר", "הצעות", "ציון ממוצע"]);
+  rows.push(["????? ??? ????????", "????", "?????????", "?? ?????????", "????? ???", "?????", "???? ?????"]);
   const potentialGroups = new Map();
   state.filtered.forEach((row) => {
     const key = normalize(row[columns.potential]);
@@ -1755,17 +1665,9 @@ function exportSummary() {
     group.quotes += hasQuote(row) ? 1 : 0;
     group.scoreSum += calculateLeadScore(row).score;
   });
-  [...potentialGroups.entries()].forEach(([label, group]) => {
-    rows.push([label, group.total, group.interested, group.irrelevant, group.other, group.quotes, Math.round(group.scoreSum / group.total)]);
-  });
+  [...potentialGroups.entries()].forEach(([label, group]) => rows.push([label, group.total, group.interested, group.irrelevant, group.other, group.quotes, Math.round(group.scoreSum / group.total)]));
 
-  const csv = rows.map((row) => row.map(csvEscape).join(",")).join("\n");
-  const blob = new Blob(["\uFEFF", csv], { type: "text/csv;charset=utf-8" });
-  const link = document.createElement("a");
-  link.href = URL.createObjectURL(blob);
-  link.download = "sales-statistics-summary.csv";
-  link.click();
-  URL.revokeObjectURL(link.href);
+  downloadCsv(rows, "sales-statistics-summary.csv");
 }
 
 function exportPriorityLeads() {
@@ -1790,7 +1692,7 @@ function exportPriorityLeads() {
     rows.push([
       score,
       action,
-      row[columns.business],
+      row[columns.customerCode],
       row[columns.created],
       normalize(row[columns.owner]),
       normalize(row[columns.source]),
